@@ -1,15 +1,16 @@
 import sys
+import PySide2.QtGui
 
 from win_caffeine import qt
 import qdarktheme
 
 
-icon_path = "assets/coffee-on.png"
+light_icon_path = "assets/coffee-on.png"
+dark_icon_path = "assets/coffee-on-dark.png"
 
 
 def is_dark_theme(palette: qt.QPalette) -> bool:
     text_color = palette.color(palette.Text)
-
     lum = sum((text_color.red(), text_color.green(), text_color.blue())) // 3
     return lum > 127
 
@@ -22,12 +23,23 @@ class MainWindow(qt.QMainWindow):
     ) -> None:
         flags = flags or qt.Qt.WindowFlags()
         super().__init__(parent, flags)
-        cw = qt.QWidget()
-        lay = qt.QVBoxLayout(self)
-        btn = qt.QPushButton(qt.QIcon(icon_path), "Toggle")
-        lay.addWidget(btn)
-        cw.setLayout(lay)
-        self.setCentralWidget(cw)
+        central_widget = qt.QWidget()
+        central_layout = qt.QVBoxLayout()
+
+        icon_path = dark_icon_path if is_dark_theme(self.palette()) else light_icon_path
+        toggle_button = qt.QPushButton(qt.QIcon(icon_path), "Toggle")
+        toggle_button.setObjectName("toggle_button")
+        toggle_button.clicked.connect(self.on_toggle_toggle_button_clicked)
+        
+        central_layout.addWidget(toggle_button)
+        central_widget.setLayout(central_layout)
+        self.setCentralWidget(central_widget)
+
+    def close(self) -> bool:
+        return self.hide()
+
+    def on_toggle_toggle_button_clicked(self):
+        print('clicked')
 
 
 def main():
@@ -36,14 +48,12 @@ def main():
 
     # Create the application
     app = qt.QApplication([])
-    is_dark = is_dark_theme(app.palette())
-
     qdarktheme.setup_theme("auto", default_theme="light")
-    is_dark = is_dark_theme(app.palette())
 
     # Create the main window
     window = MainWindow()
     # Create the system tray icon
+    icon_path = dark_icon_path if is_dark_theme(app.palette()) else light_icon_path
     tray_icon = qt.QSystemTrayIcon(qt.QIcon(icon_path), parent=app)
     tray_icon.setToolTip("App Name")
 
