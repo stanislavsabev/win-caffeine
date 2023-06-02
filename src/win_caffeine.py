@@ -1,14 +1,14 @@
+"""win_coffeine implementation."""
+import functools
 import sys
 
+from win_caffeine import const
 from win_caffeine import qt
 from win_caffeine import screen_lock
 import qdarktheme
 
 APP_NAME = "win-caffeine"
-ON_OFF_MODE = {
-    True: "off",
-    False: "on",
-}
+ON_OFF_MODE = ["off", "on"]
 
 
 def get_icon_path(mode, theme) -> str:
@@ -23,6 +23,33 @@ def is_dark_theme(palette: qt.QPalette) -> bool:
 
 def theme_from_palette(palette) -> str:
     return "dark" if is_dark_theme(palette) else "light"
+
+
+class LabeledSpinbox(qt.QWidget):
+    def __init__(
+        self,
+        label_text: str = "",
+        value: int = 0,
+        min_value: int = const.MIN_INT,
+        max_value: int = const.MAX_INT,
+        orientation: qt.Qt.Orientation = qt.Qt.Horizontal,
+        parent: qt.QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        if orientation == qt.Qt.Horizontal:
+            layout = qt.QHBoxLayout()
+        else:
+            layout = qt.QVBoxLayout()
+        label = qt.QLabel(label_text)
+        spin_box = qt.QSpinBox()
+        spin_box.setMaximum(max_value)
+        spin_box.setMinimum(min_value)
+        spin_box.setValue(value)
+        layout.addWidget(label)
+        layout.addWidget(spin_box)
+        self.setLayout(layout)
+        self.label = label
+        self.spin_box = spin_box
 
 
 class MainWindow(qt.QMainWindow):
@@ -49,6 +76,26 @@ class MainWindow(qt.QMainWindow):
 
         mode_label = qt.QLabel(self.get_state_message())
         self.mode_label = mode_label
+
+        enable_duration_checkbox = qt.QCheckBox("Set Duration")
+        enable_duration_checkbox.stateChanged.connect(self.on_enable_duration_state_changed)
+        duration_widget = LabeledSpinbox(
+            "Duration (min)", 2 * const.HOUR, orientation=qt.Qt.Horizontal
+        )
+        interval_widget = LabeledSpinbox(
+            "Refresh interval (sec)", 2 * const.MINUTE, orientation=qt.Qt.Horizontal
+        )
+
+        self.enable_duration_checkbox = enable_duration_checkbox
+        self.duration_widget = duration_widget
+        self.interval_widget = interval_widget
+        is_duration_enabled = False
+        enable_duration_checkbox.setChecked(is_duration_enabled)
+        self.on_enable_duration_state_changed()
+
+        central_layout.addWidget(enable_duration_checkbox)
+        central_layout.addWidget(duration_widget)
+        central_layout.addWidget(interval_widget)
         central_layout.addWidget(mode_label)
         central_layout.addWidget(toggle_button)
         central_widget.setLayout(central_layout)
@@ -58,25 +105,38 @@ class MainWindow(qt.QMainWindow):
         return self.hide()
 
     def update_toggle_button(self):
-        mode = ON_OFF_MODE[screen_lock.is_on()]
-        next_mode = ON_OFF_MODE[not screen_lock.is_on()]
+        mode = ON_OFF_MODE[int(screen_lock.is_on())]
+        next_mode = ON_OFF_MODE[int(not screen_lock.is_on())]
         self.toggle_button.setText(f"Turn {next_mode}")
         self.toggle_button.setIcon(self.button_icons[mode])
 
     def get_state_message(self) -> str:
-        state = "disabled" if screen_lock.is_on() else "enabled"
+        state = "enabled" if screen_lock.is_on() else "disabled"
         return f"Screen lock is {state}"
 
+    def on_enable_duration_state_changed(self):
+        enabled = self.enable_duration_checkbox.isChecked()
+        self.duration_widget.setEnabled(enabled)
+        self.interval_widget.setEnabled(enabled)
+
     def on_toggle_toggle_button_clicked(self):
-        action = screen_lock.prevent_screen_lock
+        action = screen_lock.release_screen_lock
         if screen_lock.is_on():
-            action = screen_lock.release_screen_lock
+            if self.enable_duration_checkbox.isChecked():
+                action = functools.partial(
+                    screen_lock.run_prevent_screen_lock,
+                    self.duration_widget.spin_box.value(),
+                    self.interval_widget.spin_box.value(),
+                )
+            else:
+                action = screen_lock.prevent_screen_lock
         try:
             action()
         except Exception:
             self.statusBar().showMessage("Screen lock action failed!", 2)
         finally:
             self.mode_label.setText(self.get_state_message())
+            self.update_toggle_button()
 
 
 def gui(*args, **kwargs):
@@ -95,6 +155,7 @@ def gui(*args, **kwargs):
     window = MainWindow(theme=theme)
     window.setWindowTitle(APP_NAME)
     window.setWindowIcon(qt.QIcon(icon_path))
+    window.setFixedSize(qt.QSize(200, 180))
 
     # Create the system tray icon
     tray_icon = qt.QSystemTrayIcon(qt.QIcon(icon_path), parent=app)

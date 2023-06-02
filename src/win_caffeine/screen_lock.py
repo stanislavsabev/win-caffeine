@@ -1,5 +1,8 @@
+"""Screen lock implementation."""
 import ctypes
 import time
+
+from win_caffeine import const
 
 # Define constants
 ES_CONTINUOUS = 0x80000000
@@ -29,7 +32,9 @@ def release_screen_lock():
     _state.is_on = True
 
 
-def run_prevent_screen_lock(time_span_min: int, refresh_interval_sec: int = 30):
+def run_prevent_screen_lock(
+    time_span_min: int, refresh_interval_sec: int = const.DEFAULT_INTERVAL_SEC
+):
     """Prevent screen lock for amount of time.
 
     Args:
@@ -37,7 +42,10 @@ def run_prevent_screen_lock(time_span_min: int, refresh_interval_sec: int = 30):
         refresh_interval_sec (int): Number of seconds after which
             screen lock prevention is repeated. Default is 30 sec.
     """
-    end_time = time.time() + (time_span_min * 60)
+    if refresh_interval_sec <= 0:
+        refresh_interval_sec = const.DEFAULT_INTERVAL_SEC
+
+    end_time = time.time() + (time_span_min * const.MINUTE)
 
     while time.time() < end_time:
         prevent_screen_lock()

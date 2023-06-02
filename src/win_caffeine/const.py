@@ -1,0 +1,7 @@
+"""Package constants."""
+
+HOUR = 60
+MINUTE = 60
+DEFAULT_INTERVAL_SEC = 30
+MAX_INT = 2_147_483_647
+MIN_INT = -MAX_INT - 1
