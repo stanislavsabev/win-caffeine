@@ -1,5 +1,5 @@
 """Bulk imports from the PySide2 package, to manage in one place."""
-
+# flake8: noqa
 import os
 import PySide2
 
@@ -26,7 +26,6 @@ from PySide2.QtCore import (
     QThreadPool,
     Signal,
     QEvent,
-    
 )
 from PySide2.QtGui import (
     QBrush,
@@ -45,6 +44,7 @@ from PySide2.QtGui import (
     QStandardItemModel,
     QPainter,
     QTextBlock,
+    QPalette,
 )
 from PySide2.QtWidgets import (
     QAction,
@@ -79,7 +79,8 @@ from PySide2.QtWidgets import (
     QWidgetAction,
     QTableWidget,
     QTableWidgetItem,
-    QFrame, 
+    QFrame,
     QStackedWidget,
     QStackedLayout,
+    QSystemTrayIcon,
 )
