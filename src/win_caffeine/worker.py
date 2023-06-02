@@ -1,23 +1,20 @@
-import logging
-import os
 import sys
-from types import TracebackType
-from typing import Callable, Tuple, Type
+from typing import Callable
 
-from PySide2.QtCore import QObject, QRunnable, Signal
-
-
-class WorkerSignals(QObject):
-    
-    before_start = Signal()
-    result = Signal(object)
-    error = Signal(tuple) # Tuple[Type[BaseException], BaseException, TracebackType]
-    finished = Signal()
-    progress = Signal(int, str)
+from win_caffeine import qt
 
 
-class Worker(QRunnable):
-    
+class WorkerSignals(qt.QObject):
+
+    before_start = qt.Signal()
+    result = qt.Signal(object)
+    error = qt.Signal(tuple)  # Tuple[Type[BaseException], BaseException, TracebackType]
+    finished = qt.Signal()
+    progress = qt.Signal(str)
+
+
+class Worker(qt.QRunnable):
+
     def __init__(self, func: Callable, *args, **kwargs) -> None:
         super(Worker, self).__init__()
         self.func = func
@@ -30,7 +27,7 @@ class Worker(QRunnable):
         try:
             self.signals.before_start.emit()
             result = self.func(*self.args, **self.kwargs)
-        except:
+        except Exception:
             self.signals.error.emit(sys.exc_info())
         else:
             self.signals.result.emit(result)
