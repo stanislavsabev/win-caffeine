@@ -61,7 +61,6 @@ class LabeledSpinbox(qt.QWidget):
 
 
 class DurationWidget(qt.QWidget):
-
     def __init__(self, parent: qt.QWidget | None = None) -> None:
         super().__init__(parent)
         self.checkbox = qt.QCheckBox("Set Duration")
@@ -154,7 +153,7 @@ class MainWindow(qt.QMainWindow):
         if not screen_lock.is_on():
             if self.duration_widget.checkbox.isChecked():
                 screen_lock.reset_end_time()
-            screen_lock.release_screen_lock
+            screen_lock.release_screen_lock()
 
     def run_prevent_lock_duration(self):
         if not self.duration_widget.isEnabled():
@@ -163,18 +162,19 @@ class MainWindow(qt.QMainWindow):
 
         worker = qworker.QWorker(
             screen_lock.run_prevent_screen_lock,
-            self.duration_widget.spin_box.value(),
-            self.interval_widget.spin_box.value(),
+            self.duration_widget.duration.spin_box.value(),
+            self.duration_widget.interval.spin_box.value(),
         )
-        worker.signals.error(self.on_duration_error)
-        worker.signals.before_start(self.on_before_start)
-        worker.signals.finished(self.on_finished)
-        worker.signals.progress(self.on_progress)
-        worker.run()
-        # self.thread_pool.start(worker)
+        worker.signals.error.connect(self.on_duration_error)
+        worker.signals.before_start.connect(self.on_before_start)
+        worker.signals.finished.connect(self.on_finished)
+        worker.signals.progress.connect(self.on_progress)
+        # worker.run()
+        self.thread_pool.start(worker)
 
     def on_duration_error(
-        self, exc_info: Tuple[Type[BaseException], BaseException, TracebackType]
+        self,
+        exc_info: Tuple[Type[BaseException], BaseException, TracebackType],
     ):
         exc_type, exc, tb = exc_info
         print(exc.args)
@@ -183,7 +183,6 @@ class MainWindow(qt.QMainWindow):
         self,
     ):
         self.duration_widget.setEnabled(False)
-        self.interval_widget.setEnabled(False)
 
     def on_finished(
         self,
@@ -192,9 +191,7 @@ class MainWindow(qt.QMainWindow):
         self.duration_widget.setEnabled(True)
         self.duration_widget.on_enable_duration_changed()
 
-    def on_progress(
-        self, msg: str
-    ):
+    def on_progress(self, msg: str):
         td_str = get_time_hh_mm_ss(int(msg))
         self.mode_label.setText(self.get_state_message() + f" ({td_str})")
 

@@ -1,7 +1,6 @@
 """Screen lock implementation."""
 import ctypes
 import time
-from typing import Callable
 
 from win_caffeine import const
 
@@ -17,7 +16,8 @@ class _State:
 
 
 def reset_duration_time():
-    _state.end_time_sec = time.time()
+    global _state
+    _state.end_time_sec = 0
     _state.refresh_interval_sec = 0
 
 
@@ -41,7 +41,7 @@ def release_screen_lock():
 def run_prevent_screen_lock(
     duration_min: int,
     refresh_interval_sec: int = const.DEFAULT_INTERVAL_SEC,
-    progress_callback: Callable = None,
+    **kwargs,
 ):
     """Prevent screen lock for amount of time.
 
@@ -52,6 +52,7 @@ def run_prevent_screen_lock(
     """
     _state.end_time_sec = time.time() + (duration_min * const.MINUTE)
     _state.refresh_interval_sec = refresh_interval_sec
+    progress_callback = kwargs.pop("progress_callback")
 
     while time.time() < _state.end_time_sec:
         remaining_time = _state.end_time_sec - time.time()
@@ -62,7 +63,7 @@ def run_prevent_screen_lock(
             time.sleep(1)
             sleep_interval += 1
             remaining_time -= 1
-            progress_callback(str(remaining_time))
+            progress_callback(str(int(remaining_time)))
     release_screen_lock()
 
 
