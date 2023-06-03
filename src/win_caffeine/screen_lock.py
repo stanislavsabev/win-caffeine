@@ -1,6 +1,7 @@
 """Screen lock implementation."""
 import ctypes
 import time
+from typing import Callable
 
 from win_caffeine import const
 
@@ -11,8 +12,13 @@ ES_SYSTEM_REQUIRED = 0x00000001
 
 class _State:
     is_on = True
-    time_span_min = 0
     refresh_interval_sec = 0
+    end_time_sec = 0
+
+
+def reset_duration_time():
+    _state.end_time_sec = time.time()
+    _state.refresh_interval_sec = 0
 
 
 def is_on() -> bool:
@@ -33,23 +39,30 @@ def release_screen_lock():
 
 
 def run_prevent_screen_lock(
-    time_span_min: int, refresh_interval_sec: int = const.DEFAULT_INTERVAL_SEC
+    duration_min: int,
+    refresh_interval_sec: int = const.DEFAULT_INTERVAL_SEC,
+    progress_callback: Callable = None,
 ):
     """Prevent screen lock for amount of time.
 
     Args:
-        time_span_min (int): Number of minutes, screen lock prevention to last.
+        duration_min (int): Number of minutes, screen lock prevention to last.
         refresh_interval_sec (int): Number of seconds after which
             screen lock prevention is repeated. Default is 30 sec.
     """
-    if refresh_interval_sec <= 0:
-        refresh_interval_sec = const.DEFAULT_INTERVAL_SEC
+    _state.end_time_sec = time.time() + (duration_min * const.MINUTE)
+    _state.refresh_interval_sec = refresh_interval_sec
 
-    end_time = time.time() + (time_span_min * const.MINUTE)
-
-    while time.time() < end_time:
+    while time.time() < _state.end_time_sec:
+        remaining_time = _state.end_time_sec - time.time()
         prevent_screen_lock()
-        time.sleep(refresh_interval_sec)
+
+        sleep_interval = 0
+        while sleep_interval < _state.refresh_interval_sec:
+            time.sleep(1)
+            sleep_interval += 1
+            remaining_time -= 1
+            progress_callback(str(remaining_time))
     release_screen_lock()
 
 

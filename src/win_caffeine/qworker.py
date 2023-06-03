@@ -4,7 +4,7 @@ from typing import Callable
 from win_caffeine import qt
 
 
-class WorkerSignals(qt.QObject):
+class QWorkerSignals(qt.QObject):
 
     before_start = qt.Signal()
     result = qt.Signal(object)
@@ -13,15 +13,15 @@ class WorkerSignals(qt.QObject):
     progress = qt.Signal(str)
 
 
-class Worker(qt.QRunnable):
+class QWorker(qt.QRunnable):
 
     def __init__(self, func: Callable, *args, **kwargs) -> None:
-        super(Worker, self).__init__()
+        super(QWorker, self).__init__()
         self.func = func
         self.args = args
         self.kwargs = kwargs
-        self.signals = WorkerSignals()
-        self.kwargs['progress_callback'] = self.signals.progress
+        self.signals = QWorkerSignals()
+        self.kwargs['progress_callback'] = self.signals.progress.emit
 
     def run(self) -> None:
         try:

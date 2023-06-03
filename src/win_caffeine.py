@@ -1,14 +1,22 @@
 """win_coffeine implementation."""
-import functools
 import sys
+from types import TracebackType
+from typing import Tuple, Type
+from datetime import timedelta
 
+import qdarktheme
 from win_caffeine import const
 from win_caffeine import qt
 from win_caffeine import screen_lock
-import qdarktheme
+from win_caffeine import qworker
 
 APP_NAME = "win-caffeine"
 ON_OFF_MODE = ["off", "on"]
+
+
+def get_time_hh_mm_ss(sec: int):
+    # create timedelta and convert it into string
+    return str(timedelta(seconds=sec))
 
 
 def get_icon_path(mode, theme) -> str:
@@ -52,6 +60,30 @@ class LabeledSpinbox(qt.QWidget):
         self.spin_box = spin_box
 
 
+class DurationWidget(qt.QWidget):
+
+    def __init__(self, parent: qt.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.checkbox = qt.QCheckBox("Set Duration")
+        self.checkbox.stateChanged.connect(self.on_enable_duration_changed)
+        self.duration = LabeledSpinbox(
+            "Duration (min)", 2 * const.HOUR, orientation=qt.Qt.Horizontal
+        )
+        self.interval = LabeledSpinbox(
+            "Refresh interval (sec)", 2 * const.MINUTE, orientation=qt.Qt.Horizontal
+        )
+        layout = qt.QVBoxLayout()
+        layout.addWidget(self.checkbox)
+        layout.addWidget(self.duration)
+        layout.addWidget(self.interval)
+        self.setLayout(layout)
+
+    def on_enable_duration_changed(self):
+        enabled = self.checkbox.isChecked()
+        self.duration.setEnabled(enabled)
+        self.interval.setEnabled(enabled)
+
+
 class MainWindow(qt.QMainWindow):
     def __init__(
         self,
@@ -62,6 +94,7 @@ class MainWindow(qt.QMainWindow):
         flags = flags or qt.Qt.WindowFlags()
         super().__init__(parent, flags)
         self.button_icons = {mode: qt.QIcon(get_icon_path(mode, theme)) for mode in ["on", "off"]}
+        self.thread_pool = qt.QThreadPool()
         self.setup_ui()
 
     def setup_ui(self):
@@ -77,25 +110,12 @@ class MainWindow(qt.QMainWindow):
         mode_label = qt.QLabel(self.get_state_message())
         self.mode_label = mode_label
 
-        enable_duration_checkbox = qt.QCheckBox("Set Duration")
-        enable_duration_checkbox.stateChanged.connect(self.on_enable_duration_state_changed)
-        duration_widget = LabeledSpinbox(
-            "Duration (min)", 2 * const.HOUR, orientation=qt.Qt.Horizontal
-        )
-        interval_widget = LabeledSpinbox(
-            "Refresh interval (sec)", 2 * const.MINUTE, orientation=qt.Qt.Horizontal
-        )
-
-        self.enable_duration_checkbox = enable_duration_checkbox
+        duration_widget = DurationWidget()
+        duration_widget.checkbox.setChecked(False)
+        duration_widget.on_enable_duration_changed()
         self.duration_widget = duration_widget
-        self.interval_widget = interval_widget
-        is_duration_enabled = False
-        enable_duration_checkbox.setChecked(is_duration_enabled)
-        self.on_enable_duration_state_changed()
 
-        central_layout.addWidget(enable_duration_checkbox)
         central_layout.addWidget(duration_widget)
-        central_layout.addWidget(interval_widget)
         central_layout.addWidget(mode_label)
         central_layout.addWidget(toggle_button)
         central_widget.setLayout(central_layout)
@@ -114,22 +134,14 @@ class MainWindow(qt.QMainWindow):
         state = "enabled" if screen_lock.is_on() else "disabled"
         return f"Screen lock is {state}"
 
-    def on_enable_duration_state_changed(self):
-        enabled = self.enable_duration_checkbox.isChecked()
-        self.duration_widget.setEnabled(enabled)
-        self.interval_widget.setEnabled(enabled)
-
     def on_toggle_toggle_button_clicked(self):
-        action = screen_lock.release_screen_lock
+        action = self.stop_screen_lock
         if screen_lock.is_on():
-            if self.enable_duration_checkbox.isChecked():
-                action = functools.partial(
-                    screen_lock.run_prevent_screen_lock,
-                    self.duration_widget.spin_box.value(),
-                    self.interval_widget.spin_box.value(),
-                )
+            if self.duration_widget.checkbox.isChecked():
+                action = self.run_prevent_lock_duration
             else:
                 action = screen_lock.prevent_screen_lock
+
         try:
             action()
         except Exception:
@@ -137,6 +149,54 @@ class MainWindow(qt.QMainWindow):
         finally:
             self.mode_label.setText(self.get_state_message())
             self.update_toggle_button()
+
+    def stop_screen_lock(self):
+        if not screen_lock.is_on():
+            if self.duration_widget.checkbox.isChecked():
+                screen_lock.reset_end_time()
+            screen_lock.release_screen_lock
+
+    def run_prevent_lock_duration(self):
+        if not self.duration_widget.isEnabled():
+            self.statusBar().showMessage("Duration lock prevent is running!", 2)
+            return
+
+        worker = qworker.QWorker(
+            screen_lock.run_prevent_screen_lock,
+            self.duration_widget.spin_box.value(),
+            self.interval_widget.spin_box.value(),
+        )
+        worker.signals.error(self.on_duration_error)
+        worker.signals.before_start(self.on_before_start)
+        worker.signals.finished(self.on_finished)
+        worker.signals.progress(self.on_progress)
+        worker.run()
+        # self.thread_pool.start(worker)
+
+    def on_duration_error(
+        self, exc_info: Tuple[Type[BaseException], BaseException, TracebackType]
+    ):
+        exc_type, exc, tb = exc_info
+        print(exc.args)
+
+    def on_before_start(
+        self,
+    ):
+        self.duration_widget.setEnabled(False)
+        self.interval_widget.setEnabled(False)
+
+    def on_finished(
+        self,
+    ):
+        self.mode_label.setText(self.get_state_message())
+        self.duration_widget.setEnabled(True)
+        self.duration_widget.on_enable_duration_changed()
+
+    def on_progress(
+        self, msg: str
+    ):
+        td_str = get_time_hh_mm_ss(int(msg))
+        self.mode_label.setText(self.get_state_message() + f" ({td_str})")
 
 
 def gui(*args, **kwargs):
@@ -155,7 +215,9 @@ def gui(*args, **kwargs):
     window = MainWindow(theme=theme)
     window.setWindowTitle(APP_NAME)
     window.setWindowIcon(qt.QIcon(icon_path))
-    window.setFixedSize(qt.QSize(200, 180))
+    window.setMinimumHeight(200)
+    window.setMaximumHeight(230)
+    window.setFixedWidth(280)
 
     # Create the system tray icon
     tray_icon = qt.QSystemTrayIcon(qt.QIcon(icon_path), parent=app)
