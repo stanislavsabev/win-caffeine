@@ -1,7 +1,15 @@
 """Package constants."""
 
+APP_NAME = "win-caffeine"
+
+WINDOW_FIXED_WIDTH = 280
+WINDOW_FIXED_HEIGHT = 220
+
+
 HOUR = 60
 MINUTE = 60
 DEFAULT_INTERVAL_SEC = 30
 MAX_INT = 2_147_483_647
 MIN_INT = -MAX_INT - 1
+
+ON_OFF_MODE = ["off", "on"]
