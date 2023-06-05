@@ -12,7 +12,7 @@ def get_time_hh_mm_ss(sec: int):
 def is_dark_theme(palette: qt.QPalette) -> bool:
     text_color = palette.color(palette.Text)
     lum = sum((text_color.red(), text_color.green(), text_color.blue())) // 3
-    return lum > 127
+    return lum < 127
 
 
 def theme_from_palette(palette) -> str:

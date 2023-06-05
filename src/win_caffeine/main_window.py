@@ -62,15 +62,17 @@ class DurationWidget(qt.QWidget):
 class MainWindow(qt.QMainWindow):
     def __init__(
         self,
+        app: qt.QApplication,
         parent: qt.QWidget | None = None,
         flags: qt.Qt.WindowFlags | None = None,
     ) -> None:
         flags = flags or qt.Qt.WindowFlags()
         super().__init__(parent, flags)
         self.toggle_button_icons = {
-            "on": qt.QIcon(settings.IconPath.coffee_on),
-            "off": qt.QIcon(settings.IconPath.coffee_off),
+            "on": qt.QIcon(settings.icon_path.coffee_on),
+            "off": qt.QIcon(settings.icon_path.coffee_off),
         }
+        self.app = app
         self.thread_pool = qt.QThreadPool()
         self.mode_label = qt.QLabel()
         self.toggle_button = qt.QPushButton()
@@ -97,6 +99,13 @@ class MainWindow(qt.QMainWindow):
         central_layout.addLayout(buttons_layout)
         self.central_widget.setLayout(central_layout)
         self.setCentralWidget(self.central_widget)
+        self.setup_window()
+
+    def setup_window(self):
+        self.setWindowTitle(settings.APP_NAME)
+        self.setWindowIcon(qt.QIcon(settings.icon_path.coffee_on))
+        self.setFixedWidth(settings.WINDOW_FIXED_WIDTH)
+        self.setFixedHeight(settings.WINDOW_FIXED_HEIGHT)
 
     def setup_buttons(self):
         self.toggle_button.setObjectName("toggle_button")
@@ -105,13 +114,16 @@ class MainWindow(qt.QMainWindow):
         for btn in [self.settings_button, self.exit_button]:
             btn.setFixedSize(qt.QSize(25, 25))
 
-        self.toggle_button.setToolTip("Settings")
-        self.toggle_button.setIcon(qt.QIcon(settings.IconPath.SETTINGS))
+        self.update_toggle_button()
+        self.settings_button.setIcon(qt.QIcon(settings.icon_path.settings))
+        self.exit_button.setIcon(qt.QIcon(settings.icon_path.exit))
+        self.settings_button.setToolTip("Settings")
+        self.exit_button.setToolTip("Exit")
 
     def connect_signals(self):
         self.toggle_button.clicked.connect(self.on_toggle_button_clicked)
         self.settings_button.clicked.connect(self.on_settings_button_clicked)
-        self.exit_button.clicked.connect(self.on_exit_button_clicked)
+        self.exit_button.clicked.connect(self.app.quit)
         self.update_toggle_button()
 
     def close(self) -> bool:
@@ -126,8 +138,8 @@ class MainWindow(qt.QMainWindow):
         self.toggle_button.setText(f"Turn {next_mode}")
 
     def get_state_message(self) -> str:
-        state = "enabled" if screen_lock.is_on() else "disabled"
-        return f"Screen lock is {state}"
+        state = "enabled" if not screen_lock.is_on() else "disabled"
+        return f"Prevent screen lock is {state}"
 
     def on_toggle_button_clicked(self):
         action = self.stop_screen_lock
@@ -146,10 +158,7 @@ class MainWindow(qt.QMainWindow):
             self.update_toggle_button()
 
     def on_settings_button_clicked(self):
-        pass
-
-    def on_exit_button_clicked(self):
-        pass
+        print("Show settings dialog")
 
     def stop_screen_lock(self):
         if not screen_lock.is_on():

@@ -8,27 +8,19 @@ from win_caffeine import main_window
 def run(*args, **kwargs):
     """Run GUI app."""
 
-    # Clear existing state
-    screen_lock.release_screen_lock()
+    # Start in prevent screen lock state
+    screen_lock.prevent_screen_lock()
 
     settings.init()
     # Create the application
     app = qt.QApplication([])
-    settings.set_theme("auto")
-
-    icon_path = settings.IconPath.coffee_off
-    if screen_lock.is_on():
-        icon_path = settings.IconPath.coffee_on
+    settings.set_theme("auto", app)
 
     # Create the main window
-    window = main_window.MainWindow()
-    window.setWindowTitle(settings.APP_NAME)
-    window.setWindowIcon(qt.QIcon(icon_path))
-    window.setFixedWidth(settings.WINDOW_FIXED_WIDTH)
-    window.setFixedHeight(settings.WINDOW_FIXED_HEIGHT)
+    window = main_window.MainWindow(app)
 
     # Create the system tray icon
-    tray_icon = qt.QSystemTrayIcon(qt.QIcon(icon_path), parent=app)
+    tray_icon = qt.QSystemTrayIcon(qt.QIcon(settings.icon_path.coffee_on), parent=app)
     tray_icon.setToolTip(settings.APP_NAME)
 
     # Create the system tray menu

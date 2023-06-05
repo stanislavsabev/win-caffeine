@@ -1,7 +1,8 @@
 """Package settings."""
 import qdarktheme
 
-from win_caffeine import qt, utils
+from win_caffeine import qt
+from win_caffeine import utils
 
 
 APP_NAME = "win-caffeine"
@@ -17,13 +18,35 @@ MAX_INT = 2_147_483_647
 MIN_INT = -MAX_INT - 1
 
 
+_AVAILABLE_THEMES = qdarktheme.get_themes()
+
+
 class Theme:
     DEFAULT_THEME = "light"
-    AVAILABLE_THEMES = qdarktheme.get_themes()
     current = "light"
 
 
-_theme = Theme
+class IconPath:
+
+    @property
+    def settings(self) -> str:
+        return f"assets/settings-{theme.current}.png"
+
+    @property
+    def exit(self) -> str:
+        return f"assets/exit-door-{theme.current}.png"
+
+    @property
+    def coffee_on(self) -> str:
+        return f"assets/coffee-on-{theme.current}.png"
+
+    @property
+    def coffee_off(self) -> str:
+        return f"assets/coffee-off-{theme.current}.png"
+
+
+theme = Theme()
+icon_path = IconPath()
 
 
 def init():
@@ -32,32 +55,14 @@ def init():
     qdarktheme.enable_hi_dpi()
 
 
-def get_theme():
-    return _theme.current
+def get_current_theme() -> str:
+    return theme.current
 
 
-def set_theme(theme):
-    if theme not in _theme.AVAILABLE_THEMES:
-        raise ValueError(f"Theme {theme} is not available.")
-    qdarktheme.setup_theme(theme, default_theme="light")
-    if theme == "auto":
-        theme = utils.theme_from_palette(qt.QApplication.palette())
-    _theme.current = theme
-
-
-class IconPath:
-    @property
-    def settings(self):
-        return f"assets/settings-{_theme.current}.png"
-
-    @property
-    def exit(self):
-        return f"assets/exit-door-{_theme.current}.png"
-
-    @property
-    def coffee_on(self):
-        return f"assets/coffee-on-{_theme.current}.png"
-
-    @property
-    def coffee_off(self):
-        return f"assets/coffee-off-{_theme.current}.png"
+def set_theme(name: str, app: qt.QApplication):
+    if name not in _AVAILABLE_THEMES:
+        raise ValueError(f"Theme {name} is not available.")
+    qdarktheme.setup_theme(name, default_theme="light")
+    if name == "auto":
+        name = utils.theme_from_palette(app.palette())
+    theme.current = name
