@@ -1,10 +1,6 @@
 """GUI app implementation."""
-
-import qdarktheme
-
-from win_caffeine import const
+from win_caffeine import settings
 from win_caffeine import qt
-from win_caffeine import utils
 from win_caffeine import screen_lock
 from win_caffeine import main_window
 
@@ -15,27 +11,25 @@ def run(*args, **kwargs):
     # Clear existing state
     screen_lock.release_screen_lock()
 
-    # Enable HiDPI.
-    qdarktheme.enable_hi_dpi()
-
+    settings.init()
     # Create the application
     app = qt.QApplication([])
-    qdarktheme.setup_theme("auto", default_theme="light")
+    settings.set_theme("auto")
 
-    mode = const.ON_OFF_MODE[screen_lock.is_on()]
-    theme = utils.theme_from_palette(app.palette())
-    icon_path = utils.get_icon_path(mode, theme)
+    icon_path = settings.IconPath.coffee_off
+    if screen_lock.is_on():
+        icon_path = settings.IconPath.coffee_on
 
     # Create the main window
-    window = main_window.MainWindow(theme=theme)
-    window.setWindowTitle(const.APP_NAME)
+    window = main_window.MainWindow()
+    window.setWindowTitle(settings.APP_NAME)
     window.setWindowIcon(qt.QIcon(icon_path))
-    window.setFixedWidth(const.WINDOW_FIXED_WIDTH)
-    window.setFixedHeight(const.WINDOW_FIXED_HEIGHT)
+    window.setFixedWidth(settings.WINDOW_FIXED_WIDTH)
+    window.setFixedHeight(settings.WINDOW_FIXED_HEIGHT)
 
     # Create the system tray icon
     tray_icon = qt.QSystemTrayIcon(qt.QIcon(icon_path), parent=app)
-    tray_icon.setToolTip(const.APP_NAME)
+    tray_icon.setToolTip(settings.APP_NAME)
 
     # Create the system tray menu
     tray_menu = qt.QMenu()

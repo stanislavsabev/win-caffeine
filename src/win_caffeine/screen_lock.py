@@ -2,7 +2,7 @@
 import ctypes
 import time
 
-from win_caffeine import const
+from win_caffeine import settings
 
 # Define constants
 ES_CONTINUOUS = 0x80000000
@@ -40,7 +40,7 @@ def release_screen_lock():
 
 def run_prevent_screen_lock(
     duration_min: int,
-    refresh_interval_sec: int = const.DEFAULT_INTERVAL_SEC,
+    refresh_interval_sec: int = settings.DEFAULT_INTERVAL_SEC,
     **kwargs,
 ):
     """Prevent screen lock for amount of time.
@@ -50,7 +50,7 @@ def run_prevent_screen_lock(
         refresh_interval_sec (int): Number of seconds after which
             screen lock prevention is repeated. Default is 30 sec.
     """
-    _state.end_time_sec = time.time() + (duration_min * const.MINUTE)
+    _state.end_time_sec = time.time() + (duration_min * settings.MINUTE)
     _state.refresh_interval_sec = refresh_interval_sec
     progress_callback = kwargs.pop("progress_callback")
 

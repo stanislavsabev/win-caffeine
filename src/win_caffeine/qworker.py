@@ -5,7 +5,6 @@ from win_caffeine import qt
 
 
 class QWorkerSignals(qt.QObject):
-
     before_start = qt.Signal()
     result = qt.Signal(object)
     error = qt.Signal(tuple)  # Tuple[Type[BaseException], BaseException, TracebackType]
@@ -14,14 +13,13 @@ class QWorkerSignals(qt.QObject):
 
 
 class QWorker(qt.QRunnable):
-
     def __init__(self, func: Callable, *args, **kwargs) -> None:
         super(QWorker, self).__init__()
         self.func = func
         self.args = args
         self.kwargs = kwargs
         self.signals = QWorkerSignals()
-        self.kwargs['progress_callback'] = self.signals.progress.emit
+        self.kwargs["progress_callback"] = self.signals.progress.emit
 
     def run(self) -> None:
         try:

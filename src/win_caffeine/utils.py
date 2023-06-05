@@ -9,10 +9,6 @@ def get_time_hh_mm_ss(sec: int):
     return str(timedelta(seconds=sec))
 
 
-def get_icon_path(mode, theme) -> str:
-    return f"assets/coffee-{mode}-{theme}.png"
-
-
 def is_dark_theme(palette: qt.QPalette) -> bool:
     text_color = palette.color(palette.Text)
     lum = sum((text_color.red(), text_color.green(), text_color.blue())) // 3

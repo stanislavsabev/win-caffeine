@@ -2,7 +2,8 @@
 from types import TracebackType
 from typing import Tuple, Type
 
-from win_caffeine import const, utils
+from win_caffeine import settings
+from win_caffeine import utils
 from win_caffeine import qt
 from win_caffeine import screen_lock
 from win_caffeine import qworker
@@ -13,8 +14,8 @@ class LabeledSpinbox(qt.QWidget):
         self,
         label_text: str = "",
         value: int = 0,
-        min_value: int = const.MIN_INT,
-        max_value: int = const.MAX_INT,
+        min_value: int = settings.MIN_INT,
+        max_value: int = settings.MAX_INT,
         orientation: qt.Qt.Orientation = qt.Qt.Horizontal,
         parent: qt.QWidget | None = None,
     ) -> None:
@@ -41,10 +42,10 @@ class DurationWidget(qt.QWidget):
         self.checkbox = qt.QCheckBox("Set Duration")
         self.checkbox.stateChanged.connect(self.on_enable_duration_changed)
         self.duration = LabeledSpinbox(
-            "Duration (min)", 2 * const.HOUR, orientation=qt.Qt.Horizontal
+            "Duration (min)", 2 * settings.HOUR, orientation=qt.Qt.Horizontal
         )
         self.interval = LabeledSpinbox(
-            "Refresh interval (sec)", 2 * const.MINUTE, orientation=qt.Qt.Horizontal
+            "Refresh interval (sec)", 2 * settings.MINUTE, orientation=qt.Qt.Horizontal
         )
         layout = qt.QVBoxLayout()
         layout.addWidget(self.checkbox)
@@ -61,56 +62,74 @@ class DurationWidget(qt.QWidget):
 class MainWindow(qt.QMainWindow):
     def __init__(
         self,
-        theme,
         parent: qt.QWidget | None = None,
         flags: qt.Qt.WindowFlags | None = None,
     ) -> None:
         flags = flags or qt.Qt.WindowFlags()
         super().__init__(parent, flags)
-        self.button_icons = {
-            mode: qt.QIcon(utils.get_icon_path(mode, theme)) for mode in ["on", "off"]
+        self.toggle_button_icons = {
+            "on": qt.QIcon(settings.IconPath.coffee_on),
+            "off": qt.QIcon(settings.IconPath.coffee_off),
         }
         self.thread_pool = qt.QThreadPool()
+        self.mode_label = qt.QLabel()
+        self.toggle_button = qt.QPushButton()
+        self.settings_button = qt.QPushButton()
+        self.exit_button = qt.QPushButton()
+        self.duration_widget = DurationWidget()
+        self.central_widget = qt.QWidget()
         self.setup_ui()
+        self.connect_signals()
 
     def setup_ui(self):
-        central_widget = qt.QWidget()
         central_layout = qt.QVBoxLayout()
+        self.mode_label.setText(self.get_state_message())
+        self.duration_widget.checkbox.setChecked(False)
+        self.duration_widget.on_enable_duration_changed()
 
-        toggle_button = qt.QPushButton()
-        toggle_button.setObjectName("toggle_button")
-        toggle_button.clicked.connect(self.on_toggle_toggle_button_clicked)
-        self.toggle_button = toggle_button
+        self.setup_buttons()
+        buttons_layout = qt.QHBoxLayout()
+        buttons_layout.addWidget(self.toggle_button)
+        buttons_layout.addWidget(self.settings_button)
+        buttons_layout.addWidget(self.exit_button)
+        central_layout.addWidget(self.duration_widget)
+        central_layout.addWidget(self.mode_label)
+        central_layout.addLayout(buttons_layout)
+        self.central_widget.setLayout(central_layout)
+        self.setCentralWidget(self.central_widget)
+
+    def setup_buttons(self):
+        self.toggle_button.setObjectName("toggle_button")
+        self.settings_button.setObjectName("settings_button")
+        self.exit_button.setObjectName("exit_button")
+        for btn in [self.settings_button, self.exit_button]:
+            btn.setFixedSize(qt.QSize(25, 25))
+
+        self.toggle_button.setToolTip("Settings")
+        self.toggle_button.setIcon(qt.QIcon(settings.IconPath.SETTINGS))
+
+    def connect_signals(self):
+        self.toggle_button.clicked.connect(self.on_toggle_button_clicked)
+        self.settings_button.clicked.connect(self.on_settings_button_clicked)
+        self.exit_button.clicked.connect(self.on_exit_button_clicked)
         self.update_toggle_button()
-
-        mode_label = qt.QLabel(self.get_state_message())
-        self.mode_label = mode_label
-
-        duration_widget = DurationWidget()
-        duration_widget.checkbox.setChecked(False)
-        duration_widget.on_enable_duration_changed()
-        self.duration_widget = duration_widget
-
-        central_layout.addWidget(duration_widget)
-        central_layout.addWidget(mode_label)
-        central_layout.addWidget(toggle_button)
-        central_widget.setLayout(central_layout)
-        self.setCentralWidget(central_widget)
 
     def close(self) -> bool:
         return self.hide()
 
     def update_toggle_button(self):
-        mode = const.ON_OFF_MODE[int(screen_lock.is_on())]
-        next_mode = const.ON_OFF_MODE[int(not screen_lock.is_on())]
+        mode = "on"
+        next_mode = "off"
+        if screen_lock.is_on():
+            mode, next_mode = next_mode, mode
+        self.toggle_button.setIcon(self.toggle_button_icons[mode])
         self.toggle_button.setText(f"Turn {next_mode}")
-        self.toggle_button.setIcon(self.button_icons[mode])
 
     def get_state_message(self) -> str:
         state = "enabled" if screen_lock.is_on() else "disabled"
         return f"Screen lock is {state}"
 
-    def on_toggle_toggle_button_clicked(self):
+    def on_toggle_button_clicked(self):
         action = self.stop_screen_lock
         if screen_lock.is_on():
             if self.duration_widget.checkbox.isChecked():
@@ -125,6 +144,12 @@ class MainWindow(qt.QMainWindow):
         finally:
             self.mode_label.setText(self.get_state_message())
             self.update_toggle_button()
+
+    def on_settings_button_clicked(self):
+        pass
+
+    def on_exit_button_clicked(self):
+        pass
 
     def stop_screen_lock(self):
         if not screen_lock.is_on():
