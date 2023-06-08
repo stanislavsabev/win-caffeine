@@ -17,7 +17,7 @@ def run(*args, **kwargs):
     settings.set_theme("auto", app)
 
     # Create the main window
-    window = main_window.MainWindow(app)
+    window = main_window.MainWindow()
 
     # Create the system tray icon
     tray_icon = qt.QSystemTrayIcon(qt.QIcon(settings.icon_path.coffee_on), parent=app)

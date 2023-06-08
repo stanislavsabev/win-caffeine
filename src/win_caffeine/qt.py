@@ -83,4 +83,6 @@ from PySide2.QtWidgets import (
     QStackedWidget,
     QStackedLayout,
     QSystemTrayIcon,
+    QButtonGroup,
+    QRadioButton,
 )

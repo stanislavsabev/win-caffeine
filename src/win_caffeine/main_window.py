@@ -5,97 +5,57 @@ from typing import Tuple, Type
 from win_caffeine import settings
 from win_caffeine import utils
 from win_caffeine import qt
+from win_caffeine import custom_widgets as widgets
 from win_caffeine import screen_lock
 from win_caffeine import qworker
 
 
-class LabeledSpinbox(qt.QWidget):
-    def __init__(
-        self,
-        label_text: str = "",
-        value: int = 0,
-        min_value: int = settings.MIN_INT,
-        max_value: int = settings.MAX_INT,
-        orientation: qt.Qt.Orientation = qt.Qt.Horizontal,
-        parent: qt.QWidget | None = None,
-    ) -> None:
-        super().__init__(parent)
-        if orientation == qt.Qt.Horizontal:
-            layout = qt.QHBoxLayout()
-        else:
-            layout = qt.QVBoxLayout()
-        label = qt.QLabel(label_text)
-        spin_box = qt.QSpinBox()
-        spin_box.setMaximum(max_value)
-        spin_box.setMinimum(min_value)
-        spin_box.setValue(value)
-        layout.addWidget(label)
-        layout.addWidget(spin_box)
-        self.setLayout(layout)
-        self.label = label
-        self.spin_box = spin_box
-
-
-class DurationWidget(qt.QWidget):
-    def __init__(self, parent: qt.QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.checkbox = qt.QCheckBox("Set Duration")
-        self.checkbox.stateChanged.connect(self.on_enable_duration_changed)
-        self.duration = LabeledSpinbox(
-            "Duration (min)", 2 * settings.HOUR, orientation=qt.Qt.Horizontal
-        )
-        self.interval = LabeledSpinbox(
-            "Refresh interval (sec)", 2 * settings.MINUTE, orientation=qt.Qt.Horizontal
-        )
-        layout = qt.QVBoxLayout()
-        layout.addWidget(self.checkbox)
-        layout.addWidget(self.duration)
-        layout.addWidget(self.interval)
-        self.setLayout(layout)
-
-    def on_enable_duration_changed(self):
-        enabled = self.checkbox.isChecked()
-        self.duration.setEnabled(enabled)
-        self.interval.setEnabled(enabled)
-
-
 class MainWindow(qt.QMainWindow):
+    """Main window."""
+    
     def __init__(
         self,
-        app: qt.QApplication,
         parent: qt.QWidget | None = None,
         flags: qt.Qt.WindowFlags | None = None,
     ) -> None:
+        """Main window.
+        """
         flags = flags or qt.Qt.WindowFlags()
         super().__init__(parent, flags)
         self.toggle_button_icons = {
             "on": qt.QIcon(settings.icon_path.coffee_on),
             "off": qt.QIcon(settings.icon_path.coffee_off),
         }
-        self.app = app
         self.thread_pool = qt.QThreadPool()
-        self.mode_label = qt.QLabel()
+        self.duration_widget = widgets.DurationWidget()
+        self.method_widget = widgets.RadioButtonGroup(
+            options=["NumLock", "Thread Exec State"],
+            exclusive=True,
+            default_opt_index=0)
+        self.state_label = qt.QLabel()
         self.toggle_button = qt.QPushButton()
         self.settings_button = qt.QPushButton()
         self.exit_button = qt.QPushButton()
-        self.duration_widget = DurationWidget()
         self.central_widget = qt.QWidget()
         self.setup_ui()
         self.connect_signals()
 
     def setup_ui(self):
         central_layout = qt.QVBoxLayout()
-        self.mode_label.setText(self.get_state_message())
+        self.state_label.setText(self.get_state_message())
         self.duration_widget.checkbox.setChecked(False)
         self.duration_widget.on_enable_duration_changed()
-
+        method_layout = qt.QVBoxLayout()
+        method_layout.addWidget(qt.QLabel("Suspend method"))
+        method_layout.addWidget(self.method_widget)
         self.setup_buttons()
         buttons_layout = qt.QHBoxLayout()
         buttons_layout.addWidget(self.toggle_button)
         buttons_layout.addWidget(self.settings_button)
         buttons_layout.addWidget(self.exit_button)
+        central_layout.addLayout(method_layout)
         central_layout.addWidget(self.duration_widget)
-        central_layout.addWidget(self.mode_label)
+        central_layout.addWidget(self.state_label)
         central_layout.addLayout(buttons_layout)
         self.central_widget.setLayout(central_layout)
         self.setCentralWidget(self.central_widget)
@@ -119,11 +79,13 @@ class MainWindow(qt.QMainWindow):
         self.exit_button.setIcon(qt.QIcon(settings.icon_path.exit))
         self.settings_button.setToolTip("Settings")
         self.exit_button.setToolTip("Exit")
+        self.method_widget.buttons_group.buttonClicked.connect(self.on_method_button_clicked)
+        self.method_widget.setToolTip("Suspend method")
 
     def connect_signals(self):
         self.toggle_button.clicked.connect(self.on_toggle_button_clicked)
         self.settings_button.clicked.connect(self.on_settings_button_clicked)
-        self.exit_button.clicked.connect(self.app.quit)
+        self.exit_button.clicked.connect(qt.QApplication.instance().quit)
         self.update_toggle_button()
 
     def close(self) -> bool:
@@ -139,26 +101,29 @@ class MainWindow(qt.QMainWindow):
 
     def get_state_message(self) -> str:
         state = "enabled" if not screen_lock.is_on() else "disabled"
-        return f"Prevent screen lock is {state}"
+        return f"Suspend screen lock is {state}"
 
     def on_toggle_button_clicked(self):
         action = self.stop_screen_lock
         if screen_lock.is_on():
             if self.duration_widget.checkbox.isChecked():
-                action = self.run_prevent_lock_duration
+                action = self.run_suspend_lock_duration
             else:
-                action = screen_lock.prevent_screen_lock
+                action = screen_lock.suspend_screen_lock
 
         try:
             action()
         except Exception:
             self.statusBar().showMessage("Screen lock action failed!", 2)
         finally:
-            self.mode_label.setText(self.get_state_message())
+            self.state_label.setText(self.get_state_message())
             self.update_toggle_button()
 
     def on_settings_button_clicked(self):
         print("Show settings dialog")
+
+    def on_method_button_clicked(self, object):
+        print("Key was pressed, id is:", self.method_widget.buttons_group.id(object))
 
     def stop_screen_lock(self):
         if not screen_lock.is_on():
@@ -166,13 +131,13 @@ class MainWindow(qt.QMainWindow):
                 screen_lock.reset_end_time()
             screen_lock.release_screen_lock()
 
-    def run_prevent_lock_duration(self):
+    def run_suspend_lock_duration(self):
         if not self.duration_widget.isEnabled():
-            self.statusBar().showMessage("Duration lock prevent is running!", 2)
+            self.statusBar().showMessage("Duration lock suspend is running!", 2)
             return
 
         worker = qworker.QWorker(
-            screen_lock.run_prevent_screen_lock,
+            screen_lock.run_suspend_screen_lock,
             self.duration_widget.duration.spin_box.value(),
             self.duration_widget.interval.spin_box.value(),
         )
@@ -198,10 +163,10 @@ class MainWindow(qt.QMainWindow):
     def on_finished(
         self,
     ):
-        self.mode_label.setText(self.get_state_message())
+        self.state_label.setText(self.get_state_message())
         self.duration_widget.setEnabled(True)
         self.duration_widget.on_enable_duration_changed()
 
     def on_progress(self, msg: str):
         td_str = utils.get_time_hh_mm_ss(int(msg))
-        self.mode_label.setText(self.get_state_message() + f" ({td_str})")
+        self.state_label.setText(self.get_state_message() + f" ({td_str})")

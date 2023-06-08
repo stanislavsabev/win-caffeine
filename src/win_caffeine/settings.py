@@ -8,7 +8,7 @@ from win_caffeine import utils
 APP_NAME = "win-caffeine"
 
 WINDOW_FIXED_WIDTH = 280
-WINDOW_FIXED_HEIGHT = 220
+WINDOW_FIXED_HEIGHT = 260
 
 
 HOUR = 60
