@@ -57,7 +57,7 @@ class RadioButtonGroup(qt.QWidget):
     def __init__(
         self,
         options: List[str],
-        default_opt_index: int = 0,
+        default_ndx: int = 0,
         exclusive: bool = None,
         parent: qt.QWidget | None = None,
     ) -> None:
@@ -71,7 +71,7 @@ class RadioButtonGroup(qt.QWidget):
             btn = qt.QRadioButton(option)
             btn.setObjectName(option)
             buttons_group.addButton(btn, ndx)
-            if ndx == default_opt_index:
+            if ndx == default_ndx:
                 btn.setChecked(True)
             layout.addWidget(btn)
         self.setLayout(layout)

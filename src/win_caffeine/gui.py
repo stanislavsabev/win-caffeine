@@ -1,15 +1,11 @@
 """GUI app implementation."""
 from win_caffeine import settings
 from win_caffeine import qt
-from win_caffeine import screen_lock
 from win_caffeine import main_window
 
 
 def run(*args, **kwargs):
     """Run GUI app."""
-
-    # Start in prevent screen lock state
-    screen_lock.suspend_screen_lock()
 
     settings.init()
     # Create the application
@@ -33,6 +29,9 @@ def run(*args, **kwargs):
     window.show()
     # Minimize to system tray
     tray_icon.show()
+    
+    # Start in prevent screen lock state
+    window.on_toggle_button_clicked()
     app.setQuitOnLastWindowClosed(False)
 
     # Start the application event loop

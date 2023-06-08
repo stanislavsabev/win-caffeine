@@ -27,7 +27,6 @@ class Theme:
 
 
 class IconPath:
-
     @property
     def settings(self) -> str:
         return f"assets/settings-{theme.current}.png"

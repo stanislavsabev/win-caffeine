@@ -11,6 +11,7 @@ from win_caffeine import qworker
 
 
 STATUS_MESSAGE_DURATION_MSEC = 3000
+DEFAULT_STRATEGY_INDEX = 0
 
 
 class MainWindow(qt.QMainWindow):
@@ -28,12 +29,16 @@ class MainWindow(qt.QMainWindow):
             "on": qt.QIcon(settings.icon_path.coffee_on),
             "off": qt.QIcon(settings.icon_path.coffee_off),
         }
-        self.toggle_action: Callable = None
+        self.is_suspend_screen_lock_on = False
+        self.suspend_action: Callable = self.release_suspend_lock
         self.thread_pool = qt.QThreadPool()
         self.duration_widget = widgets.DurationWidget()
         self.method_widget = widgets.RadioButtonGroup(
-            options=["NumLock", "Thread Exec State"], exclusive=True, default_opt_index=0
+            options=[strategy.name for strategy in screen_lock.strategies],
+            exclusive=True,
+            default_ndx=DEFAULT_STRATEGY_INDEX,
         )
+        screen_lock.set_strategy(DEFAULT_STRATEGY_INDEX)
         self.state_label = qt.QLabel()
         self.toggle_button = qt.QPushButton()
         self.settings_button = qt.QPushButton()
@@ -80,7 +85,9 @@ class MainWindow(qt.QMainWindow):
         self.exit_button.setIcon(qt.QIcon(settings.icon_path.exit))
         self.settings_button.setToolTip("Settings")
         self.exit_button.setToolTip("Exit")
-        self.method_widget.buttons_group.buttonClicked.connect(self.on_method_button_clicked)
+        self.method_widget.buttons_group.buttonClicked.connect(
+            self.on_method_button_clicked
+        )
         self.method_widget.setToolTip("Suspend method")
 
     def connect_signals(self):
@@ -96,24 +103,28 @@ class MainWindow(qt.QMainWindow):
         print("self.update_toggle_state()")
         mode = "off"
         next_mode = "on"
-        if screen_lock.is_suspend_screen_lock_on():
+        if self.is_suspend_screen_lock_on:
             mode, next_mode = next_mode, mode
-            self.toggle_action = self.release_suspend_lock
-            print("self.toggle_action = self.release_suspend_lock")
+            self.suspend_action = self.release_suspend_lock
+            self.method_widget.setEnabled(False)
+
+            print("self.suspend_action = self.release_suspend_lock")
         else:
-            self.toggle_action = self.run_suspend_lock
-            print("self.toggle_action = self.run_suspend_lock")
+            self.suspend_action = self.run_suspend_lock
+            self.method_widget.setEnabled(True)
+
+            print("self.suspend_action = self.run_suspend_lock")
         self.toggle_button.setIcon(self.toggle_button_icons[mode])
         self.toggle_button.setText(f"Turn {next_mode}")
         self.state_label.setText(self.get_state_message())
 
     def get_state_message(self) -> str:
-        state = "disabled" if not screen_lock.is_suspend_screen_lock_on() else "enabled"
+        state = "disabled" if not self.is_suspend_screen_lock_on else "enabled"
         return f"Suspend screen lock is {state}"
 
     def on_toggle_button_clicked(self):
         try:
-            self.toggle_action()
+            self.suspend_action()
         except Exception:
             self.statusBar().showMessage(
                 "Screen lock action failed!", STATUS_MESSAGE_DURATION_MSEC
@@ -125,20 +136,22 @@ class MainWindow(qt.QMainWindow):
         print("Show settings dialog")
 
     def on_method_button_clicked(self, object):
-        print("Key was pressed, id is:", self.method_widget.buttons_group.id(object))
+        ndx = self.method_widget.buttons_group.id(object)
+        screen_lock.set_strategy(ndx)
 
     def release_suspend_lock(self):
         screen_lock.reset_duration_time()
         screen_lock.release_screen_lock_suspend()
+        self.is_suspend_screen_lock_on = False
 
     def run_suspend_lock(self):
-
-        if not self.duration_widget.isEnabled():
+        if self.is_suspend_screen_lock_on:
             self.statusBar().showMessage(
                 "Duration lock suspend is running!", STATUS_MESSAGE_DURATION_MSEC
             )
             return
 
+        self.is_suspend_screen_lock_on = True
         if self.duration_widget.checkbox.isChecked():
             worker = qworker.QWorker(
                 screen_lock.duration_suspend_screen_lock,
@@ -169,6 +182,7 @@ class MainWindow(qt.QMainWindow):
     def on_finished(
         self,
     ):
+        self.is_suspend_screen_lock_on = False
         self.duration_widget.setEnabled(True)
         self.update_toggle_state()
 
