@@ -9,7 +9,7 @@ def run(*args, **kwargs):
     """Run GUI app."""
 
     # Start in prevent screen lock state
-    screen_lock.prevent_screen_lock()
+    screen_lock.suspend_screen_lock()
 
     settings.init()
     # Create the application
@@ -31,7 +31,6 @@ def run(*args, **kwargs):
 
     # Show the main window
     window.show()
-
     # Minimize to system tray
     tray_icon.show()
     app.setQuitOnLastWindowClosed(False)

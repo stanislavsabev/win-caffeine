@@ -47,8 +47,8 @@ class DurationWidget(qt.QWidget):
         layout.addWidget(self.interval)
         self.setLayout(layout)
 
-    def on_enable_duration_changed(self):
-        enabled = self.checkbox.isChecked()
+    def on_enable_duration_changed(self, state):
+        enabled = state == qt.Qt.CheckState.Checked
         self.duration.setEnabled(enabled)
         self.interval.setEnabled(enabled)
 

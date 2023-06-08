@@ -10,7 +10,7 @@ ES_SYSTEM_REQUIRED = 0x00000001
 
 
 class _State:
-    is_on = True
+    is_suspend_screen_lock_on = True
     refresh_interval_sec = 0
     end_time_sec = 0
 
@@ -21,24 +21,24 @@ def reset_duration_time():
     _state.refresh_interval_sec = 0
 
 
-def is_on() -> bool:
+def is_suspend_screen_lock_on() -> bool:
     """True if screen lock is NOT prevented."""
-    return _state.is_on
+    return _state.is_suspend_screen_lock_on
 
 
-def prevent_screen_lock():
+def suspend_screen_lock():
     """Prevent screen lock."""
     ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED)
-    _state.is_on = False
+    _state.is_suspend_screen_lock_on = True
 
 
-def release_screen_lock():
+def release_screen_lock_suspend():
     """Release screen lock prevention."""
     ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS)
-    _state.is_on = True
+    _state.is_suspend_screen_lock_on = False
 
 
-def run_prevent_screen_lock(
+def duration_suspend_screen_lock(
     duration_min: int,
     refresh_interval_sec: int = settings.DEFAULT_INTERVAL_SEC,
     **kwargs,
@@ -56,7 +56,7 @@ def run_prevent_screen_lock(
 
     while time.time() < _state.end_time_sec:
         remaining_time = _state.end_time_sec - time.time()
-        prevent_screen_lock()
+        suspend_screen_lock()
 
         sleep_interval = 0
         while sleep_interval < _state.refresh_interval_sec:
@@ -64,7 +64,7 @@ def run_prevent_screen_lock(
             sleep_interval += 1
             remaining_time -= 1
             progress_callback(str(int(remaining_time)))
-    release_screen_lock()
+    release_screen_lock_suspend()
 
 
 _state = _State()
