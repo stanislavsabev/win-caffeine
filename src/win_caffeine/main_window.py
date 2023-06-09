@@ -173,8 +173,10 @@ class MainWindow(qt.QMainWindow):
         worker.signals.before_start.connect(self.on_before_start)
         worker.signals.finished.connect(self.on_finished)
         worker.signals.progress.connect(self.on_progress)
-        # worker.run()
-        self.thread_pool.start(worker)
+        if settings.MULTITHREADING:
+            self.thread_pool.start(worker)
+        else:
+            worker.run()
 
     def on_duration_error(
         self,

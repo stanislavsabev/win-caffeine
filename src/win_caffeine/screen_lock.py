@@ -113,6 +113,7 @@ class NumLock:
         refresh_interval_sec: int = settings.DEFAULT_REFRESH_INTERVAL_SEC,
         **kwargs,
     ):
+        NumLock._is_suspended = True
         _state.end_time_sec = time.time() + (duration_min * settings.MINUTE)
         _state.refresh_interval_sec = refresh_interval_sec
         progress_callback = kwargs.pop("progress_callback")

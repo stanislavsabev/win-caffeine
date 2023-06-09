@@ -11,6 +11,10 @@ logger = logging.getLogger(__name__)
 APP_NAME = "win-caffeine"
 WINDOW_FIXED_WIDTH = 280
 WINDOW_FIXED_HEIGHT = 280
+DEFAULT_APP_THEME = "light"
+
+MULTITHREADING = True
+START_IN_SUSPEND_MODE = MULTITHREADING
 
 HOUR = 60
 MINUTE = 60
@@ -23,8 +27,7 @@ _AVAILABLE_THEMES = qdarktheme.get_themes()
 
 
 class Theme:
-    DEFAULT_THEME = "light"
-    current = "light"
+    current = DEFAULT_APP_THEME
 
 
 class IconPath:

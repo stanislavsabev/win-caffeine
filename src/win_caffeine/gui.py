@@ -29,8 +29,9 @@ def run(*args, **kwargs):
     # Minimize to system tray
     tray_icon.show()
 
-    # Start in prevent screen lock state
-    window.on_toggle_button_clicked()
+    if settings.START_IN_SUSPEND_MODE:
+        window.on_toggle_button_clicked()
+
     app.setQuitOnLastWindowClosed(False)
 
     # Start the application event loop
