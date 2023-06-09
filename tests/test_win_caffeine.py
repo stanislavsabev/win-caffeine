@@ -1,10 +1,11 @@
 """Test start module."""
 
-import win_caffeine
+import pytest
+from win_caffeine import gui
 
 
 def test_start_here():
     """Test start.here."""
-    expected = 'Your code goes here!'
-    actual = win_caffeine.start()
+    expected = 0
+    actual = gui.run()
     assert actual == expected
