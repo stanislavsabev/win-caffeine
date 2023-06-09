@@ -7,7 +7,6 @@ from win_caffeine import main_window
 def run(*args, **kwargs):
     """Run GUI app."""
 
-    settings.init()
     # Create the application
     app = qt.QApplication([])
     settings.set_theme("auto", app)

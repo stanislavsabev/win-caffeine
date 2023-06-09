@@ -87,14 +87,16 @@ class MainWindow(qt.QMainWindow):
         self.exit_button.setIcon(qt.QIcon(settings.icon_path.exit))
         self.settings_button.setToolTip("Settings")
         self.exit_button.setToolTip("Exit")
-        self.method_widget.buttons_group.buttonClicked.connect(self.on_method_button_clicked)
+        self.method_widget.buttons_group.buttonClicked.connect(
+            self.on_method_button_clicked
+        )
         self.method_widget.setToolTip("Suspend method")
 
     def connect_signals(self):
         self.toggle_button.clicked.connect(self.on_toggle_button_clicked)
         self.update_toggle_state()
         self.settings_button.clicked.connect(self.on_settings_button_clicked)
-        self.exit_button.clicked.connect(qt.QApplication.instance().quit)
+        self.exit_button.clicked.connect(self.on_window_exit_clicked)
 
     def close(self) -> bool:
         return self.hide()
@@ -138,6 +140,11 @@ class MainWindow(qt.QMainWindow):
     def on_method_button_clicked(self, object):
         ndx = self.method_widget.buttons_group.id(object)
         screen_lock.set_strategy(ndx)
+
+    def on_window_exit_clicked(self):
+        if self.is_suspend_screen_lock_on:
+            self.release_suspend_lock()
+        qt.QApplication.instance().quit()
 
     def release_suspend_lock(self):
         screen_lock.reset_duration_time()
