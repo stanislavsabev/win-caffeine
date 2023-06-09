@@ -1,21 +1,26 @@
 """GUI app implementation."""
-from win_caffeine import settings
+import qdarktheme
+
 from win_caffeine import qt
+from win_caffeine import settings
+from win_caffeine import theme
 from win_caffeine import main_window
 
 
 def run(*args, **kwargs):
     """Run GUI app."""
+    # Enable HiDPI.
+    qdarktheme.enable_hi_dpi()
 
     # Create the application
     app = qt.QApplication([])
-    settings.set_theme("auto", app)
+    theme.set_theme("auto", app)
 
     # Create the main window
     window = main_window.MainWindow()
 
     # Create the system tray icon
-    tray_icon = qt.QSystemTrayIcon(qt.QIcon(settings.icon_path.coffee_on), parent=app)
+    tray_icon = qt.QSystemTrayIcon(qt.QIcon(theme.icon_path.coffee_on), parent=app)
     tray_icon.setToolTip(settings.APP_NAME)
 
     # Create the system tray menu

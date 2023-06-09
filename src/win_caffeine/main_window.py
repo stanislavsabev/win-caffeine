@@ -4,8 +4,9 @@ from types import TracebackType
 from typing import Callable, Tuple, Type
 
 from win_caffeine import settings
-from win_caffeine import utils
 from win_caffeine import qt
+from win_caffeine import utils
+from win_caffeine import theme
 from win_caffeine import custom_widgets as widgets
 from win_caffeine import screen_lock
 from win_caffeine import qworker
@@ -28,8 +29,8 @@ class MainWindow(qt.QMainWindow):
         flags = flags or qt.Qt.WindowFlags()
         super().__init__(parent, flags)
         self.toggle_button_icons = {
-            "on": qt.QIcon(settings.icon_path.coffee_on),
-            "off": qt.QIcon(settings.icon_path.coffee_off),
+            "on": qt.QIcon(theme.icon_path.coffee_on),
+            "off": qt.QIcon(theme.icon_path.coffee_off),
         }
         self.is_suspend_screen_lock_on = False
         self.suspend_action: Callable = self.release_suspend_lock
@@ -73,7 +74,7 @@ class MainWindow(qt.QMainWindow):
 
     def setup_window(self):
         self.setWindowTitle(settings.APP_NAME)
-        self.setWindowIcon(qt.QIcon(settings.icon_path.coffee_on))
+        self.setWindowIcon(qt.QIcon(theme.icon_path.coffee_on))
         self.setFixedWidth(settings.WINDOW_FIXED_WIDTH)
         self.setFixedHeight(settings.WINDOW_FIXED_HEIGHT)
 
@@ -83,8 +84,8 @@ class MainWindow(qt.QMainWindow):
         self.exit_button.setObjectName("exit_button")
         for btn in [self.settings_button, self.exit_button]:
             btn.setFixedSize(qt.QSize(25, 25))
-        self.settings_button.setIcon(qt.QIcon(settings.icon_path.settings))
-        self.exit_button.setIcon(qt.QIcon(settings.icon_path.exit))
+        self.settings_button.setIcon(qt.QIcon(theme.icon_path.settings))
+        self.exit_button.setIcon(qt.QIcon(theme.icon_path.exit))
         self.settings_button.setToolTip("Settings")
         self.exit_button.setToolTip("Exit")
         self.method_widget.buttons_group.buttonClicked.connect(
