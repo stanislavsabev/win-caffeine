@@ -7,6 +7,7 @@ Uses `SetThreadExecutionState` with `ES_CONTINUOUS` see [SetThreadExecutionState
 
 ## TODO:
 
+
 ### Implement CLI args:
 
 subcommand, required:
@@ -15,11 +16,28 @@ subcommand, required:
 Args:
     --duration=0, in minutes
     --refresh_interval=60, Default = 60 sec
-    --method="NumLock" / 
+    --method="NumLock" / "ThreadExecState (TES ?)"
     --suspend-on-start=True
 
 
 ### Implement cmd subcommand
+    Ability to run in CLI mode, with args
 
 
-### Add tests
+### Settings panel
+    - minimize to system tray (Don't ask again)
+    - theme
+    - start with windows ?
+    - save settings to user profile, remember window position + last used method, theme etc. 
+
+### Tests and CI/CD
+    - unit test
+    -flake8, mypy, tox
+    - git hooks
+    - github actions
+
+
+### Update README
+     - Usage / how-to install section
+
+### Create v1.0.0

@@ -31,7 +31,7 @@ def run(*args, **kwargs):
 
     # Show the main window
     window.show()
-    # Minimize to system tray
+    # Tray icon to minimize to system tray
     tray_icon.show()
 
     if settings.START_IN_SUSPEND_MODE:
