@@ -1,4 +1,3 @@
 @echo off
-CALL ".\.venv\Scripts\activate.bat"
-"python" "win-caffeine.py"
-pause
+call ".\.venv\Scripts\activate.bat"
+call "python" "win-caffeine.py" %*
