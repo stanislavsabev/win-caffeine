@@ -29,7 +29,7 @@ def run(*args, **kwargs):
     window.show()
     # Minimize to system tray
     tray_icon.show()
-    
+
     # Start in prevent screen lock state
     window.on_toggle_button_clicked()
     app.setQuitOnLastWindowClosed(False)

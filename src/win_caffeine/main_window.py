@@ -1,4 +1,5 @@
 """Main GUI window."""
+import logging
 from types import TracebackType
 from typing import Callable, Tuple, Type
 
@@ -9,6 +10,7 @@ from win_caffeine import custom_widgets as widgets
 from win_caffeine import screen_lock
 from win_caffeine import qworker
 
+logger = logging.getLogger(__name__)
 
 STATUS_MESSAGE_DURATION_MSEC = 3000
 DEFAULT_STRATEGY_INDEX = 0
@@ -85,9 +87,7 @@ class MainWindow(qt.QMainWindow):
         self.exit_button.setIcon(qt.QIcon(settings.icon_path.exit))
         self.settings_button.setToolTip("Settings")
         self.exit_button.setToolTip("Exit")
-        self.method_widget.buttons_group.buttonClicked.connect(
-            self.on_method_button_clicked
-        )
+        self.method_widget.buttons_group.buttonClicked.connect(self.on_method_button_clicked)
         self.method_widget.setToolTip("Suspend method")
 
     def connect_signals(self):
@@ -100,7 +100,7 @@ class MainWindow(qt.QMainWindow):
         return self.hide()
 
     def update_toggle_state(self):
-        print("self.update_toggle_state()")
+        logger.debug("self.update_toggle_state()")
         mode = "off"
         next_mode = "on"
         if self.is_suspend_screen_lock_on:
@@ -108,12 +108,12 @@ class MainWindow(qt.QMainWindow):
             self.suspend_action = self.release_suspend_lock
             self.method_widget.setEnabled(False)
 
-            print("self.suspend_action = self.release_suspend_lock")
+            logger.debug("self.suspend_action = self.release_suspend_lock")
         else:
             self.suspend_action = self.run_suspend_lock
             self.method_widget.setEnabled(True)
 
-            print("self.suspend_action = self.run_suspend_lock")
+            logger.debug("self.suspend_action = self.run_suspend_lock")
         self.toggle_button.setIcon(self.toggle_button_icons[mode])
         self.toggle_button.setText(f"Turn {next_mode}")
         self.state_label.setText(self.get_state_message())
@@ -133,7 +133,7 @@ class MainWindow(qt.QMainWindow):
             self.update_toggle_state()
 
     def on_settings_button_clicked(self):
-        print("Show settings dialog")
+        logger.debug("Show settings dialog")
 
     def on_method_button_clicked(self, object):
         ndx = self.method_widget.buttons_group.id(object)
@@ -152,27 +152,29 @@ class MainWindow(qt.QMainWindow):
             return
 
         self.is_suspend_screen_lock_on = True
+        worker = None
         if self.duration_widget.checkbox.isChecked():
             worker = qworker.QWorker(
                 screen_lock.duration_suspend_screen_lock,
                 self.duration_widget.duration.spin_box.value(),
                 self.duration_widget.interval.spin_box.value(),
             )
-            worker.signals.error.connect(self.on_duration_error)
-            worker.signals.before_start.connect(self.on_before_start)
-            worker.signals.finished.connect(self.on_finished)
-            worker.signals.progress.connect(self.on_progress)
-            # worker.run()
-            self.thread_pool.start(worker)
         else:
-            screen_lock.suspend_screen_lock()
+            worker = qworker.QWorker(screen_lock.suspend_screen_lock)
+
+        worker.signals.error.connect(self.on_duration_error)
+        worker.signals.before_start.connect(self.on_before_start)
+        worker.signals.finished.connect(self.on_finished)
+        worker.signals.progress.connect(self.on_progress)
+        # worker.run()
+        self.thread_pool.start(worker)
 
     def on_duration_error(
         self,
         exc_info: Tuple[Type[BaseException], BaseException, TracebackType],
     ):
         _, exc, _ = exc_info
-        print(exc.args)
+        logger.debug(exc.args)
 
     def on_before_start(
         self,

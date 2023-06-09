@@ -1,19 +1,20 @@
 """Package settings."""
+import logging
+
 import qdarktheme
 
 from win_caffeine import qt
 from win_caffeine import utils
 
+logger = logging.getLogger(__name__)
 
 APP_NAME = "win-caffeine"
-
 WINDOW_FIXED_WIDTH = 280
 WINDOW_FIXED_HEIGHT = 280
 
-
 HOUR = 60
 MINUTE = 60
-DEFAULT_INTERVAL_SEC = 30
+DEFAULT_REFRESH_INTERVAL_SEC = 2 * MINUTE
 MAX_INT = 2_147_483_647
 MIN_INT = -MAX_INT - 1
 

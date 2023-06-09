@@ -1,11 +1,13 @@
 """Screen lock implementation."""
 import collections
 import ctypes
+import logging
 import time
 import typing
 
 from win_caffeine import settings
 
+logger = logging.getLogger(__name__)
 
 ScreenLock = collections.namedtuple("ScreenLock", ["name", "impl"])
 
@@ -39,19 +41,24 @@ class ThreadExecState:
     # Execution state constants
     ES_CONTINUOUS = 0x80000000
     ES_SYSTEM_REQUIRED = 0x00000001
+    _is_suspended = False
 
     def suspend_screen_lock(self):
+        ThreadExecState._is_suspended = True
         ctypes.windll.kernel32.SetThreadExecutionState(
             ThreadExecState.ES_CONTINUOUS | ThreadExecState.ES_SYSTEM_REQUIRED
         )
+        while ThreadExecState._is_suspended:
+            time.sleep(1)
 
     def release_screen_lock_suspend(self):
         ctypes.windll.kernel32.SetThreadExecutionState(ThreadExecState.ES_CONTINUOUS)
+        ThreadExecState._is_suspended = False
 
     def duration_suspend_screen_lock(
         self,
         duration_min: int,
-        refresh_interval_sec: int = settings.DEFAULT_INTERVAL_SEC,
+        refresh_interval_sec: int = settings.DEFAULT_REFRESH_INTERVAL_SEC,
         **kwargs,
     ):
         _state.end_time_sec = time.time() + (duration_min * settings.MINUTE)
@@ -61,7 +68,6 @@ class ThreadExecState:
         while time.time() < _state.end_time_sec:
             remaining_time = _state.end_time_sec - time.time()
             self.suspend_screen_lock()
-
             sleep_interval = 0
             while sleep_interval < _state.refresh_interval_sec:
                 time.sleep(1)
@@ -72,25 +78,61 @@ class ThreadExecState:
 
 
 class NumLock:
+    _is_suspended = False
+    VK_NUMLOCK = 0x90
+
     def suspend_screen_lock(self):
-        pass
+        NumLock._is_suspended = True
+
+        while NumLock._is_suspended:
+            print("Press NUMLOCK")
+            self.send_key(self.VK_NUMLOCK)
+
+            sleep_interval = settings.DEFAULT_REFRESH_INTERVAL_SEC
+            while sleep_interval > 0:
+                time.sleep(1)
+                sleep_interval -= 1
+                if not NumLock._is_suspended:
+                    return
 
     def release_screen_lock_suspend(self):
-        pass
+        NumLock._is_suspended = False
 
     def duration_suspend_screen_lock(
         self,
         duration_min: int,
-        refresh_interval_sec: int = settings.DEFAULT_INTERVAL_SEC,
+        refresh_interval_sec: int = settings.DEFAULT_REFRESH_INTERVAL_SEC,
         **kwargs,
     ):
         _state.end_time_sec = time.time() + (duration_min * settings.MINUTE)
         _state.refresh_interval_sec = refresh_interval_sec
         progress_callback = kwargs.pop("progress_callback")
+        while time.time() < _state.end_time_sec:
+            remaining_time = _state.end_time_sec - time.time()
+            print("Press NUMLOCK")
+            self.send_key(self.VK_NUMLOCK)
+
+            sleep_interval = _state.refresh_interval_sec
+            while sleep_interval > 0:
+                time.sleep(1)
+                sleep_interval -= 1
+                remaining_time -= 1
+                progress_callback(str(int(remaining_time)))
+                if not NumLock._is_suspended:
+                    return
+        self.release_screen_lock_suspend()
+
+    def send_key(self, key):
+        # key down
+        ctypes.windll.user32.keybd_event(key, 0, 0, 0)
+        time.sleep(0.2)
+        # key up
+        ctypes.windll.user32.keybd_event(key, 0, 0x002, 0)
 
 
-def suspend_screen_lock():
+def suspend_screen_lock(**kwargs):
     """Suspends screen lock."""
+    del kwargs  # unused
     _state.impl.suspend_screen_lock()
 
 
@@ -101,7 +143,7 @@ def release_screen_lock_suspend():
 
 def duration_suspend_screen_lock(
     duration_min: int,
-    refresh_interval_sec: int = settings.DEFAULT_INTERVAL_SEC,
+    refresh_interval_sec: int = settings.DEFAULT_REFRESH_INTERVAL_SEC,
     **kwargs,
 ):
     """Suspends screen lock for set duration of time.

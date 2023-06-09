@@ -2,8 +2,11 @@
 
 
 import sys
+import logging
 
-from win_caffeine import gui
+from win_caffeine import gui, settings
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 def main():
@@ -11,6 +14,8 @@ def main():
 
     # choose GUI or CLI
     args = []
+
+    settings.init()
     return gui.run(*args)
 
 
