@@ -19,15 +19,17 @@ class MainWindow(qt.QMainWindow):
 
     def __init__(
         self,
+        model: screen_lock.Model,
         parent: qt.QWidget | None = None,
         flags: qt.Qt.WindowFlags | None = None,
     ) -> None:
         """Main window."""
         flags = flags or qt.Qt.WindowFlags()
         super().__init__(parent, flags)
+        self.model = model
         self.suspend_action: Callable = self.release_suspend_lock
         self.thread_pool = qt.QThreadPool()
-        self.duration_widget = widgets.DurationWidget()
+        self.duration_widget = widgets.DurationWidget(self.model)
         self.method_widget = widgets.RadioButtonGroup(
             options=[strategy.name for strategy in screen_lock.strategies],
             exclusive=True,
@@ -86,12 +88,8 @@ class MainWindow(qt.QMainWindow):
 
     def setup_model(self):
         self._settings.beginGroup("ModelSettings")
-        strategy_ndx = self._settings.value(
-            "strategy_index", settings.DEFAULT_STRATEGY_INDEX
-        )
-        duration_checked = self._settings.value(
-            "duration_checked", qt.Qt.CheckState.Unchecked
-        )
+        strategy_ndx = self._settings.value("strategy_index", settings.DEFAULT_STRATEGY_INDEX)
+        duration_checked = self._settings.value("duration_checked", qt.Qt.CheckState.Unchecked)
         duration_minutes = self._settings.value(
             "duration_minutes", settings.DEFAULT_DURATION_MINUTES, int
         )
@@ -100,8 +98,8 @@ class MainWindow(qt.QMainWindow):
         )
 
         self.method_widget.setButtonChecked(strategy_ndx)
-        screen_lock.set_strategy(strategy_ndx)
-        screen_lock.set_suspended(False)
+        self.model.set_strategy(strategy_ndx)
+        self.model.set_suspended(False)
 
         self.state_label.setText(self.get_state_message())
         self.duration_widget.checkbox.setChecked(duration_checked)
@@ -115,9 +113,7 @@ class MainWindow(qt.QMainWindow):
         self.toggle_button.clicked.connect(self.on_toggle_button_clicked)
         self.settings_button.clicked.connect(self.on_settings_button_clicked)
         self.exit_button.clicked.connect(self.on_window_exit_clicked)
-        self.method_widget.buttons_group.buttonClicked.connect(
-            self.on_method_button_clicked
-        )
+        self.method_widget.buttons_group.buttonClicked.connect(self.on_method_button_clicked)
 
     def save_settings(self):
         self.save_window_settings()
@@ -130,16 +126,10 @@ class MainWindow(qt.QMainWindow):
 
     def save_model_settings(self):
         self._settings.beginGroup("ModelSettings")
-        self._settings.setValue("strategy_index", screen_lock.get_strategy())
-        self._settings.setValue(
-            "duration_checked", self.duration_widget.checkbox.checkState()
-        )
-        self._settings.setValue(
-            "duration_minutes", self.duration_widget.duration.value()
-        )
-        self._settings.setValue(
-            "refresh_interval_seconds", self.duration_widget.interval.value()
-        )
+        self._settings.setValue("strategy_index", self.model.strategy_ndx)
+        self._settings.setValue("duration_checked", self.duration_widget.checkbox.checkState())
+        self._settings.setValue("duration_minutes", self.model.duration_minutes)
+        self._settings.setValue("refresh_interval_seconds", self.model.refresh_interval_seconds)
         self._settings.endGroup()
 
     def close(self) -> bool:
@@ -150,7 +140,7 @@ class MainWindow(qt.QMainWindow):
         mode = "off"
         next_mode = "on"
         icon: qt.QIcon = None
-        if screen_lock.get_suspended():
+        if self.model.is_suspend_screen_lock_on:
             mode, next_mode = next_mode, mode
             icon = qt.QIcon(theme.icon_path.coffee_on)
             self.suspend_action = self.release_suspend_lock
@@ -168,7 +158,7 @@ class MainWindow(qt.QMainWindow):
         self.state_label.setText(self.get_state_message())
 
     def get_state_message(self) -> str:
-        state = "disabled" if not screen_lock.get_suspended() else "enabled"
+        state = "disabled" if not self.model.is_suspend_screen_lock_on else "enabled"
         return f"Suspend screen lock is {state}"
 
     def on_toggle_button_clicked(self):
@@ -185,10 +175,10 @@ class MainWindow(qt.QMainWindow):
 
     def on_method_button_clicked(self, object):
         ndx = self.method_widget.buttons_group.id(object)
-        screen_lock.set_strategy(ndx)
+        self.model.set_strategy(ndx)
 
     def on_window_exit_clicked(self):
-        if screen_lock.get_suspended():
+        if self.model.is_suspend_screen_lock_on:
             self.release_suspend_lock()
         self.save_settings()
         qt.QApplication.instance().quit()
@@ -197,7 +187,7 @@ class MainWindow(qt.QMainWindow):
         screen_lock.release_screen_lock_suspend()
 
     def run_suspend_lock(self):
-        if screen_lock.get_suspended():
+        if self.model.is_suspend_screen_lock_on:
             self.statusBar().showMessage(
                 "Duration lock suspend is running!",
                 settings.STATUS_MESSAGE_DURATION_MSECONDS,
@@ -206,11 +196,7 @@ class MainWindow(qt.QMainWindow):
 
         worker = None
         if self.duration_widget.checkbox.isChecked():
-            worker = qworker.QWorker(
-                screen_lock.duration_suspend_screen_lock,
-                self.duration_widget.duration.spin_box.value(),
-                self.duration_widget.interval.spin_box.value(),
-            )
+            worker = qworker.QWorker(screen_lock.duration_suspend_screen_lock)
         else:
             worker = qworker.QWorker(screen_lock.suspend_screen_lock)
 
@@ -233,14 +219,14 @@ class MainWindow(qt.QMainWindow):
     def on_before_start(
         self,
     ):
-        screen_lock.set_suspended(True)
+        self.model.set_suspended(True)
         self.duration_widget.setEnabled(False)
         self.update_toggle_state()
 
     def on_finished(
         self,
     ):
-        screen_lock.set_suspended(False)
+        self.model.set_suspended(False)
         self.duration_widget.setEnabled(True)
         self.update_toggle_state()
 

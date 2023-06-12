@@ -1,4 +1,5 @@
 from typing import List
+import typing
 from win_caffeine import qt
 from win_caffeine import settings
 
@@ -40,14 +41,18 @@ class LabeledSpinbox(qt.QWidget):
         return self.label.text()
 
 
+class DurationModel(typing.Protocol):
+    duration_minutes: int
+    refresh_interval_sec: int
+
+
 class DurationWidget(qt.QWidget):
-    def __init__(self, parent: qt.QWidget | None = None) -> None:
+    def __init__(self, model: DurationModel, parent: qt.QWidget | None = None) -> None:
         super().__init__(parent)
+        self._model = model
         self.checkbox = qt.QCheckBox("Set Duration")
         self.checkbox.stateChanged.connect(self.on_enable_duration_changed)
-        self.duration = LabeledSpinbox(
-            "Duration (min)", value=0, orientation=qt.Qt.Horizontal
-        )
+        self.duration = LabeledSpinbox("Duration (min)", value=0, orientation=qt.Qt.Horizontal)
         self.interval = LabeledSpinbox(
             "Refresh interval (sec)", value=0, orientation=qt.Qt.Horizontal
         )
@@ -56,16 +61,24 @@ class DurationWidget(qt.QWidget):
         layout.addWidget(self.duration)
         layout.addWidget(self.interval)
         self.setLayout(layout)
+        self.duration.spin_box.valueChanged.connect(self.on_duration_changed)
+        self.interval.spin_box.valueChanged.connect(self.on_interval_changed)
 
     def setEnabled(self, enabled: bool):
-        self.setEnabled(enabled)
         self.duration.setEnabled(enabled)
         self.interval.setEnabled(enabled)
+        super().setEnabled(enabled)
 
     def on_enable_duration_changed(self, state: qt.Qt.CheckState):
         enabled = state == qt.Qt.CheckState.Checked
         self.duration.setEnabled(enabled)
         self.interval.setEnabled(enabled)
+
+    def on_duration_changed(self, value):
+        self._model.duration_minutes = value
+
+    def on_interval_changed(self, value):
+        self._model.refresh_interval_sec = value
 
 
 class RadioButtonGroup(qt.QWidget):
