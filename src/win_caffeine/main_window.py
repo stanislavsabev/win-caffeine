@@ -26,7 +26,9 @@ class MainWindow(qt.QMainWindow):
         flags = flags or qt.Qt.WindowFlags()
         super().__init__(parent, flags)
         self.model = screen_lock.model
-        self.usr_settings = qt.QSettings(qt.QSettings.UserScope, "User", settings.APP_NAME)
+        self.usr_settings = qt.QSettings(
+            qt.QSettings.UserScope, "User", settings.APP_NAME
+        )
         self.suspend_action: Callable = self.release_suspend_lock
         self.thread_pool = qt.QThreadPool()
         self.duration_widget = widgets.DurationWidget(self.model)
@@ -91,7 +93,9 @@ class MainWindow(qt.QMainWindow):
 
         self.method_widget.setButtonChecked(self.model.strategy_ndx)
         self.state_label.setText(self.get_state_message())
-        checked_state = qt.Qt.Checked if self.model.is_duration_checked else qt.Qt.Unchecked
+        checked_state = (
+            qt.Qt.Checked if self.model.is_duration_checked else qt.Qt.Unchecked
+        )
         self.duration_widget.checkbox.setChecked(checked_state)
         self.duration_widget.on_enable_duration_changed(checked_state)
         self.duration_widget.duration.setValue(self.model.duration_minutes)
@@ -101,7 +105,9 @@ class MainWindow(qt.QMainWindow):
         self.toggle_button.clicked.connect(self.on_toggle_button_clicked)
         self.settings_button.clicked.connect(self.on_settings_button_clicked)
         self.exit_button.clicked.connect(self.on_quit)
-        self.method_widget.buttons_group.buttonClicked.connect(self.on_method_button_clicked)
+        self.method_widget.buttons_group.buttonClicked.connect(
+            self.on_method_button_clicked
+        )
 
     def save_settings(self):
         self.save_window_settings()

@@ -52,7 +52,9 @@ class DurationWidget(qt.QWidget):
         self._model = model
         self.checkbox = qt.QCheckBox("Set Duration")
         self.checkbox.stateChanged.connect(self.on_enable_duration_changed)
-        self.duration = LabeledSpinbox("Duration (min)", value=0, orientation=qt.Qt.Horizontal)
+        self.duration = LabeledSpinbox(
+            "Duration (min)", value=0, orientation=qt.Qt.Horizontal
+        )
         self.interval = LabeledSpinbox(
             "Refresh interval (sec)", value=0, orientation=qt.Qt.Horizontal
         )

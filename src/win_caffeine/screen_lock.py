@@ -54,7 +54,9 @@ class ThreadExecState:
     def release_screen_lock_suspend(self):
         ctypes.windll.kernel32.SetThreadExecutionState(ThreadExecState.ES_CONTINUOUS)
         model.is_suspend_screen_lock_on = False
-        logger.debug("Release SetThreadExecutionState: 0x%x", ThreadExecState.ES_CONTINUOUS)
+        logger.debug(
+            "Release SetThreadExecutionState: 0x%x", ThreadExecState.ES_CONTINUOUS
+        )
 
     def duration_suspend_screen_lock(self, **kwargs):
         model.is_suspend_screen_lock_on = True
@@ -63,7 +65,9 @@ class ThreadExecState:
         remaining_time = end_time_sec - time.time()
 
         while time.time() < end_time_sec:
-            logger.debug("duration_suspend_screen_lock: remaining_time %d", remaining_time)
+            logger.debug(
+                "duration_suspend_screen_lock: remaining_time %d", remaining_time
+            )
             self.suspend_screen_lock()
             sleep_interval = 0
             while sleep_interval < model.refresh_interval_seconds:
@@ -108,7 +112,9 @@ class NumLock:
         remaining_time = end_time_sec - time.time()
 
         while time.time() < end_time_sec:
-            logger.debug("duration_suspend_screen_lock: remaining_time %d", remaining_time)
+            logger.debug(
+                "duration_suspend_screen_lock: remaining_time %d", remaining_time
+            )
             self.send_key(self.VK_NUMLOCK)
             time.sleep(1)
             self.send_key(self.VK_NUMLOCK)
@@ -166,10 +172,10 @@ class Model:
 
     def load_settings(self, usr_settings: qt.QSettings):
         usr_settings.beginGroup("ModelSettings")
-        self.strategy_ndx = usr_settings.value("strategy_index", settings.DEFAULT_STRATEGY_INDEX)
-        self.is_duration_checked = usr_settings.value(
-            "duration_checked", False
+        self.strategy_ndx = usr_settings.value(
+            "strategy_index", settings.DEFAULT_STRATEGY_INDEX
         )
+        self.is_duration_checked = usr_settings.value("duration_checked", False)
         self.duration_minutes = usr_settings.value(
             "duration_minutes", settings.DEFAULT_DURATION_MINUTES, int
         )
