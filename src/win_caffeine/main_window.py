@@ -31,7 +31,7 @@ class MainWindow(qt.QMainWindow):
         self.thread_pool = qt.QThreadPool()
         self.duration_widget = widgets.DurationWidget(self.model)
         self.method_widget = widgets.RadioButtonGroup(
-            options=[strategy.name for strategy in screen_lock.strategies],
+            options=[strategy.name for strategy in self.model.strategies],
             exclusive=True,
         )
         self.state_label = qt.QLabel()
@@ -91,7 +91,7 @@ class MainWindow(qt.QMainWindow):
 
         self.method_widget.setButtonChecked(self.model.strategy_ndx)
         self.state_label.setText(self.get_state_message())
-        checked_state = qt.Qt.Checked if self.model.duration_enabled else qt.Qt.Unchecked
+        checked_state = qt.Qt.Checked if self.model.is_duration_checked else qt.Qt.Unchecked
         self.duration_widget.checkbox.setChecked(checked_state)
         self.duration_widget.on_enable_duration_changed(checked_state)
         self.duration_widget.duration.setValue(self.model.duration_minutes)
@@ -164,7 +164,7 @@ class MainWindow(qt.QMainWindow):
         qt.QApplication.instance().quit()
 
     def release_suspend_lock(self):
-        screen_lock.release_screen_lock_suspend()
+        self.model.release_screen_lock_suspend()
 
     def run_suspend_lock(self):
         if self.model.is_suspend_screen_lock_on:
@@ -174,13 +174,8 @@ class MainWindow(qt.QMainWindow):
             )
             return
 
-        worker = None
-        if self.duration_widget.checkbox.isChecked():
-            worker = qworker.QWorker(screen_lock.duration_suspend_screen_lock)
-        else:
-            worker = qworker.QWorker(screen_lock.suspend_screen_lock)
-
-        worker.signals.error.connect(self.on_duration_error)
+        worker = qworker.QWorker(self.model.suspend_screen_lock)
+        worker.signals.error.connect(self.on_error)
         worker.signals.before_start.connect(self.on_before_start)
         worker.signals.finished.connect(self.on_finished)
         worker.signals.progress.connect(self.on_progress)
@@ -189,7 +184,7 @@ class MainWindow(qt.QMainWindow):
         else:
             worker.run()
 
-    def on_duration_error(
+    def on_error(
         self,
         exc_info: Tuple[Type[BaseException], BaseException, TracebackType],
     ):

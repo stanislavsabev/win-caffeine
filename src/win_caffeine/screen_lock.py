@@ -14,7 +14,7 @@ ScreenLock = collections.namedtuple("ScreenLock", ["name", "impl"])
 
 
 class ScreenLockProtocol(typing.Protocol):
-    def suspend_screen_lock(self):
+    def suspend_screen_lock(self, **kwargs):
         """Suspends screen lock."""
         ...
 
@@ -22,10 +22,7 @@ class ScreenLockProtocol(typing.Protocol):
         """Release screen lock prevention."""
         ...
 
-    def duration_suspend_screen_lock(
-        self,
-        **kwargs,
-    ):
+    def duration_suspend_screen_lock(self, **kwargs):
         """Suspends screen lock for set duration of time.
 
         Args:
@@ -41,7 +38,8 @@ class ThreadExecState:
     ES_CONTINUOUS = 0x80000000
     ES_SYSTEM_REQUIRED = 0x00000001
 
-    def suspend_screen_lock(self):
+    def suspend_screen_lock(self, **kwargs):
+        del kwargs  # unused
         model.is_suspend_screen_lock_on = True
         ctypes.windll.kernel32.SetThreadExecutionState(
             ThreadExecState.ES_CONTINUOUS | ThreadExecState.ES_SYSTEM_REQUIRED
@@ -58,10 +56,7 @@ class ThreadExecState:
         model.is_suspend_screen_lock_on = False
         logger.debug("Release SetThreadExecutionState: 0x%x", ThreadExecState.ES_CONTINUOUS)
 
-    def duration_suspend_screen_lock(
-        self,
-        **kwargs,
-    ):
+    def duration_suspend_screen_lock(self, **kwargs):
         model.is_suspend_screen_lock_on = True
         end_time_sec = time.time() + (model.duration_minutes * settings.MINUTE)
         progress_callback = kwargs.pop("progress_callback")
@@ -84,7 +79,8 @@ class ThreadExecState:
 class NumLock:
     VK_NUMLOCK = 0x90
 
-    def suspend_screen_lock(self):
+    def suspend_screen_lock(self, **kwargs):
+        del kwargs  # unused
         model.is_suspend_screen_lock_on = True
 
         while model.is_suspend_screen_lock_on:
@@ -105,10 +101,7 @@ class NumLock:
         model.is_suspend_screen_lock_on = False
         logger.debug("Release NumLock")
 
-    def duration_suspend_screen_lock(
-        self,
-        **kwargs,
-    ):
+    def duration_suspend_screen_lock(self, **kwargs):
         model.is_suspend_screen_lock_on = True
         end_time_sec = time.time() + (model.duration_minutes * settings.MINUTE)
         progress_callback = kwargs.pop("progress_callback")
@@ -139,46 +132,16 @@ class NumLock:
         logger.debug("Send key 0x%x", key)
 
 
-def suspend_screen_lock(**kwargs):
-    """Suspends screen lock."""
-    del kwargs  # unused
-    model.impl.suspend_screen_lock()
-
-
-def release_screen_lock_suspend():
-    """Release screen lock prevention."""
-    model.impl.release_screen_lock_suspend()
-
-
-def duration_suspend_screen_lock(
-    **kwargs,
-):
-    """Suspends screen lock for set duration of time.
-
-    Args:
-        duration_min (int): Number of minutes, screen lock prevention to last.
-        refresh_interval_sec (int): Number of seconds after which
-            screen lock prevention is repeated. Default is 30 sec.
-    """
-    model.impl.duration_suspend_screen_lock(**kwargs)
-
-
-def get_suspended():
-    """Gets suspend state."""
-    return model.is_suspend_screen_lock_on
-
-
-strategies = [
-    ScreenLock("NumLock", NumLock()),
-    ScreenLock("Thread Exec State", ThreadExecState()),
-]
-
-
 class Model:
     """Manages the screen lock state."""
 
+    strategies = [
+        ScreenLock("NumLock", NumLock()),
+        ScreenLock("Thread Exec State", ThreadExecState()),
+    ]
+
     is_suspend_screen_lock_on = False
-    duration_enabled = False
+    is_duration_checked = False
     strategy_ndx = settings.DEFAULT_STRATEGY_INDEX
     duration_minutes = settings.DEFAULT_DURATION_MINUTES
     refresh_interval_seconds = settings.DEFAULT_REFRESH_INTERVAL_SECONDS
@@ -190,13 +153,13 @@ class Model:
 
     def set_strategy(self, ndx: int):
         """Sets strategy for the Screen suspend."""
-        self.impl = strategies[ndx].impl
+        self.impl = self.strategies[ndx].impl
         self.strategy_ndx = ndx
 
     def save_settings(self, usr_settings: qt.QSettings):
         usr_settings.beginGroup("ModelSettings")
         usr_settings.setValue("strategy_index", self.strategy_ndx)
-        usr_settings.setValue("duration_enabled", self.duration_enabled)
+        usr_settings.setValue("duration_checked", self.is_duration_checked)
         usr_settings.setValue("duration_minutes", self.duration_minutes)
         usr_settings.setValue("refresh_interval_seconds", self.refresh_interval_seconds)
         usr_settings.endGroup()
@@ -204,7 +167,9 @@ class Model:
     def load_settings(self, usr_settings: qt.QSettings):
         usr_settings.beginGroup("ModelSettings")
         self.strategy_ndx = usr_settings.value("strategy_index", settings.DEFAULT_STRATEGY_INDEX)
-        self.duration_enabled = usr_settings.value("duration_enabled", qt.Qt.CheckState.Unchecked)
+        self.is_duration_checked = usr_settings.value(
+            "duration_checked", False
+        )
         self.duration_minutes = usr_settings.value(
             "duration_minutes", settings.DEFAULT_DURATION_MINUTES, int
         )
@@ -212,6 +177,17 @@ class Model:
             "refresh_interval_seconds", settings.DEFAULT_REFRESH_INTERVAL_SECONDS, int
         )
         usr_settings.endGroup()
+
+    def suspend_screen_lock(self, **kwargs):
+        """Suspends screen lock."""
+        if self.is_duration_checked:
+            self.impl.duration_suspend_screen_lock(**kwargs)
+        else:
+            self.impl.suspend_screen_lock(**kwargs)
+
+    def release_screen_lock_suspend(self):
+        """Release screen lock prevention."""
+        self.impl.release_screen_lock_suspend()
 
 
 model = Model()
