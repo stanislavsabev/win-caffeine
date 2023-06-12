@@ -28,11 +28,7 @@ class MainWindow(qt.QMainWindow):
         """Main window."""
         flags = flags or qt.Qt.WindowFlags()
         super().__init__(parent, flags)
-        self.toggle_button_icons = {
-            "on": qt.QIcon(theme.icon_path.coffee_on),
-            "off": qt.QIcon(theme.icon_path.coffee_off),
-        }
-        self.is_suspend_screen_lock_on = False
+        screen_lock.set_suspended(False)
         self.suspend_action: Callable = self.release_suspend_lock
         self.thread_pool = qt.QThreadPool()
         self.duration_widget = widgets.DurationWidget()
@@ -103,37 +99,41 @@ class MainWindow(qt.QMainWindow):
         return self.hide()
 
     def update_toggle_state(self):
-        logger.debug("self.update_toggle_state()")
+        logger.debug("update_toggle_state")
         mode = "off"
         next_mode = "on"
-        if self.is_suspend_screen_lock_on:
+        icon: qt.QIcon = None
+        if screen_lock.get_suspended():
             mode, next_mode = next_mode, mode
+            icon = qt.QIcon(theme.icon_path.coffee_on)
             self.suspend_action = self.release_suspend_lock
             self.method_widget.setEnabled(False)
-
-            logger.debug("self.suspend_action = self.release_suspend_lock")
+            action_name = "release_suspend_lock"
         else:
             self.suspend_action = self.run_suspend_lock
             self.method_widget.setEnabled(True)
+            icon = qt.QIcon(theme.icon_path.coffee_off)
+            action_name = "run_suspend_lock"
 
-            logger.debug("self.suspend_action = self.run_suspend_lock")
-        self.toggle_button.setIcon(self.toggle_button_icons[mode])
+        logger.debug("Next suspend_action = {}".format(action_name))
+        self.toggle_button.setIcon(icon)
         self.toggle_button.setText(f"Turn {next_mode}")
         self.state_label.setText(self.get_state_message())
 
     def get_state_message(self) -> str:
-        state = "disabled" if not self.is_suspend_screen_lock_on else "enabled"
+        state = "disabled" if not screen_lock.get_suspended() else "enabled"
         return f"Suspend screen lock is {state}"
 
     def on_toggle_button_clicked(self):
+        logger.debug("on_toggle_button_clicked")
         try:
             self.suspend_action()
         except Exception:
             self.statusBar().showMessage(
-                "Screen lock action failed!", STATUS_MESSAGE_DURATION_MSEC
+                "Suspend action failed!", STATUS_MESSAGE_DURATION_MSEC
             )
-        finally:
-            self.update_toggle_state()
+        # finally:
+        #     self.update_toggle_state()
 
     def on_settings_button_clicked(self):
         logger.debug("Show settings dialog")
@@ -143,23 +143,20 @@ class MainWindow(qt.QMainWindow):
         screen_lock.set_strategy(ndx)
 
     def on_window_exit_clicked(self):
-        if self.is_suspend_screen_lock_on:
+        if screen_lock.get_suspended():
             self.release_suspend_lock()
         qt.QApplication.instance().quit()
 
     def release_suspend_lock(self):
-        screen_lock.reset_duration_time()
         screen_lock.release_screen_lock_suspend()
-        self.is_suspend_screen_lock_on = False
 
     def run_suspend_lock(self):
-        if self.is_suspend_screen_lock_on:
+        if screen_lock.get_suspended():
             self.statusBar().showMessage(
                 "Duration lock suspend is running!", STATUS_MESSAGE_DURATION_MSEC
             )
             return
 
-        self.is_suspend_screen_lock_on = True
         worker = None
         if self.duration_widget.checkbox.isChecked():
             worker = qworker.QWorker(
@@ -189,12 +186,14 @@ class MainWindow(qt.QMainWindow):
     def on_before_start(
         self,
     ):
+        screen_lock.set_suspended(True)
         self.duration_widget.setEnabled(False)
+        self.update_toggle_state()
 
     def on_finished(
         self,
     ):
-        self.is_suspend_screen_lock_on = False
+        screen_lock.set_suspended(False)
         self.duration_widget.setEnabled(True)
         self.update_toggle_state()
 
