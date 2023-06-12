@@ -26,13 +26,16 @@ Args:
 
 ### Settings panel
 
-    [ ] minimize to system tray (Don't ask again)
 
     [ ] change theme
 
     [x] start with windows - implemented .bat and .vbs files
 
-    [ ] save settings to user profile, remember window position + last used method, theme etc. 
+    [-] save settings to user profile - 
+    
+        [x] window position + last used method, 
+        [ ] use system or custom theme etc. 
+        [ ] minimize to system tray (Don't ask again)
 
 ### Tests and CI/CD
 

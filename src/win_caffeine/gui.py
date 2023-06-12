@@ -4,7 +4,6 @@ import qdarktheme
 from win_caffeine import qt
 from win_caffeine import settings
 from win_caffeine import theme
-from win_caffeine import screen_lock
 from win_caffeine import main_window
 
 
@@ -18,7 +17,7 @@ def run(*args, **kwargs):
     theme.set_theme("auto", app)
 
     # Create the main window
-    window = main_window.MainWindow(model=screen_lock.model)
+    window = main_window.MainWindow()
 
     # Create the system tray icon
     tray_icon = qt.QSystemTrayIcon(qt.QIcon(theme.icon_path.coffee_on), parent=app)

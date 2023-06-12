@@ -5,6 +5,7 @@ import logging
 import time
 import typing
 
+from win_caffeine import qt
 from win_caffeine import settings
 
 logger = logging.getLogger(__name__)
@@ -177,6 +178,7 @@ class Model:
     """Manages the screen lock state."""
 
     is_suspend_screen_lock_on = False
+    duration_enabled = False
     strategy_ndx = settings.DEFAULT_STRATEGY_INDEX
     duration_minutes = settings.DEFAULT_DURATION_MINUTES
     refresh_interval_seconds = settings.DEFAULT_REFRESH_INTERVAL_SECONDS
@@ -190,6 +192,26 @@ class Model:
         """Sets strategy for the Screen suspend."""
         self.impl = strategies[ndx].impl
         self.strategy_ndx = ndx
+
+    def save_settings(self, usr_settings: qt.QSettings):
+        usr_settings.beginGroup("ModelSettings")
+        usr_settings.setValue("strategy_index", self.strategy_ndx)
+        usr_settings.setValue("duration_enabled", self.duration_enabled)
+        usr_settings.setValue("duration_minutes", self.duration_minutes)
+        usr_settings.setValue("refresh_interval_seconds", self.refresh_interval_seconds)
+        usr_settings.endGroup()
+
+    def load_settings(self, usr_settings: qt.QSettings):
+        usr_settings.beginGroup("ModelSettings")
+        self.strategy_ndx = usr_settings.value("strategy_index", settings.DEFAULT_STRATEGY_INDEX)
+        self.duration_enabled = usr_settings.value("duration_enabled", qt.Qt.CheckState.Unchecked)
+        self.duration_minutes = usr_settings.value(
+            "duration_minutes", settings.DEFAULT_DURATION_MINUTES, int
+        )
+        self.refresh_interval_seconds = usr_settings.value(
+            "refresh_interval_seconds", settings.DEFAULT_REFRESH_INTERVAL_SECONDS, int
+        )
+        usr_settings.endGroup()
 
 
 model = Model()

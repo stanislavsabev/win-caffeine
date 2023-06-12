@@ -19,14 +19,14 @@ class MainWindow(qt.QMainWindow):
 
     def __init__(
         self,
-        model: screen_lock.Model,
         parent: qt.QWidget | None = None,
         flags: qt.Qt.WindowFlags | None = None,
     ) -> None:
         """Main window."""
         flags = flags or qt.Qt.WindowFlags()
         super().__init__(parent, flags)
-        self.model = model
+        self.model = screen_lock.model
+        self.usr_settings = qt.QSettings(qt.QSettings.UserScope, "User", settings.APP_NAME)
         self.suspend_action: Callable = self.release_suspend_lock
         self.thread_pool = qt.QThreadPool()
         self.duration_widget = widgets.DurationWidget(self.model)
@@ -39,9 +39,8 @@ class MainWindow(qt.QMainWindow):
         self.settings_button = qt.QPushButton()
         self.exit_button = qt.QPushButton()
         self.central_widget = qt.QWidget()
-        self._settings = qt.QSettings(qt.QSettings.UserScope, "User", settings.APP_NAME)
+        self.setup_model_ui()
         self.setup_ui()
-        self.setup_model()
         self.connect_signals()
         self.update_toggle_state()
 
@@ -65,14 +64,14 @@ class MainWindow(qt.QMainWindow):
         self.settings_button.setVisible(False)
 
     def setup_window(self):
-        self._settings.beginGroup("WindowSettings")
-        window_pos = self._settings.value("window_pos", settings.WINDOW_POSITION)
+        self.usr_settings.beginGroup("WindowSettings")
+        window_pos = self.usr_settings.value("window_pos", settings.WINDOW_POSITION)
         self.move(qt.QPoint(*window_pos))
         self.setWindowTitle(settings.APP_NAME)
         self.setWindowIcon(qt.QIcon(theme.icon_path.coffee_on))
         self.setFixedWidth(settings.WINDOW_FIXED_WIDTH)
         self.setFixedHeight(settings.WINDOW_FIXED_HEIGHT)
-        self._settings.endGroup()
+        self.usr_settings.endGroup()
 
     def setup_buttons(self):
         self.toggle_button.setObjectName("toggle_button")
@@ -86,51 +85,32 @@ class MainWindow(qt.QMainWindow):
         self.exit_button.setToolTip("Exit")
         self.method_widget.setToolTip("Suspend method")
 
-    def setup_model(self):
-        self._settings.beginGroup("ModelSettings")
-        strategy_ndx = self._settings.value("strategy_index", settings.DEFAULT_STRATEGY_INDEX)
-        duration_checked = self._settings.value("duration_checked", qt.Qt.CheckState.Unchecked)
-        duration_minutes = self._settings.value(
-            "duration_minutes", settings.DEFAULT_DURATION_MINUTES, int
-        )
-        refresh_interval_seconds = self._settings.value(
-            "refresh_interval_seconds", settings.DEFAULT_REFRESH_INTERVAL_SECONDS, int
-        )
-
-        self.method_widget.setButtonChecked(strategy_ndx)
-        self.model.set_strategy(strategy_ndx)
+    def setup_model_ui(self):
+        self.model.load_settings(self.usr_settings)
         self.model.set_suspended(False)
 
+        self.method_widget.setButtonChecked(self.model.strategy_ndx)
         self.state_label.setText(self.get_state_message())
-        self.duration_widget.checkbox.setChecked(duration_checked)
-        self.duration_widget.on_enable_duration_changed(duration_checked)
-        self.duration_widget.duration.setValue(duration_minutes)
-        self.duration_widget.interval.setValue(refresh_interval_seconds)
-
-        self._settings.endGroup()
+        checked_state = qt.Qt.Checked if self.model.duration_enabled else qt.Qt.Unchecked
+        self.duration_widget.checkbox.setChecked(checked_state)
+        self.duration_widget.on_enable_duration_changed(checked_state)
+        self.duration_widget.duration.setValue(self.model.duration_minutes)
+        self.duration_widget.interval.setValue(self.model.refresh_interval_seconds)
 
     def connect_signals(self):
         self.toggle_button.clicked.connect(self.on_toggle_button_clicked)
         self.settings_button.clicked.connect(self.on_settings_button_clicked)
-        self.exit_button.clicked.connect(self.on_window_exit_clicked)
+        self.exit_button.clicked.connect(self.on_quit)
         self.method_widget.buttons_group.buttonClicked.connect(self.on_method_button_clicked)
 
     def save_settings(self):
         self.save_window_settings()
-        self.save_model_settings()
+        self.model.save_settings(self.usr_settings)
 
     def save_window_settings(self):
-        self._settings.beginGroup("WindowSettings")
-        self._settings.setValue("window_pos", self.pos().toTuple())
-        self._settings.endGroup()
-
-    def save_model_settings(self):
-        self._settings.beginGroup("ModelSettings")
-        self._settings.setValue("strategy_index", self.model.strategy_ndx)
-        self._settings.setValue("duration_checked", self.duration_widget.checkbox.checkState())
-        self._settings.setValue("duration_minutes", self.model.duration_minutes)
-        self._settings.setValue("refresh_interval_seconds", self.model.refresh_interval_seconds)
-        self._settings.endGroup()
+        self.usr_settings.beginGroup("WindowSettings")
+        self.usr_settings.setValue("window_pos", self.pos().toTuple())
+        self.usr_settings.endGroup()
 
     def close(self) -> bool:
         return self.hide()
@@ -177,7 +157,7 @@ class MainWindow(qt.QMainWindow):
         ndx = self.method_widget.buttons_group.id(object)
         self.model.set_strategy(ndx)
 
-    def on_window_exit_clicked(self):
+    def on_quit(self):
         if self.model.is_suspend_screen_lock_on:
             self.release_suspend_lock()
         self.save_settings()
