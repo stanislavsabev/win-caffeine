@@ -21,12 +21,12 @@ def run(*args, **kwargs):
 
     # Create the system tray icon
     tray_icon = qt.QSystemTrayIcon(qt.QIcon(theme.icon_path.coffee_on), parent=app)
-    tray_icon.setToolTip(settings.APP_NAME)
+    tray_icon.setToolTip(window.windowTitle())
 
     # Create the system tray menu
     tray_menu = qt.QMenu()
     tray_menu.addAction("Restore", window.showNormal)  # Restore the main window
-    tray_menu.addAction("Exit", app.quit)  # Quit the application
+    tray_menu.addAction("Exit", window.on_quit)  # Quit the application
     tray_icon.setContextMenu(tray_menu)
 
     # Show the main window
@@ -35,7 +35,7 @@ def run(*args, **kwargs):
     tray_icon.show()
 
     if settings.START_IN_SUSPEND_MODE:
-        window.on_toggle_button_clicked()
+        window.toggle_button.click()
 
     app.setQuitOnLastWindowClosed(False)
 
