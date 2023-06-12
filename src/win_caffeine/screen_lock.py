@@ -57,12 +57,14 @@ class ThreadExecState:
     def release_screen_lock_suspend(self):
         ctypes.windll.kernel32.SetThreadExecutionState(ThreadExecState.ES_CONTINUOUS)
         _state.is_suspend_screen_lock_on = False
-        logger.debug("Release SetThreadExecutionState: 0x%x", ThreadExecState.ES_CONTINUOUS)
+        logger.debug(
+            "Release SetThreadExecutionState: 0x%x", ThreadExecState.ES_CONTINUOUS
+        )
 
     def duration_suspend_screen_lock(
         self,
         duration_min: int,
-        refresh_interval_sec: int = settings.DEFAULT_REFRESH_INTERVAL_SEC,
+        refresh_interval_sec: int = settings.DEFAULT_REFRESH_INTERVAL_SECONDS,
         **kwargs,
     ):
         _state.is_suspend_screen_lock_on = True
@@ -72,7 +74,9 @@ class ThreadExecState:
 
         while time.time() < _state.end_time_sec:
             remaining_time = _state.end_time_sec - time.time()
-            logger.debug("duration_suspend_screen_lock: remaining_time %d", remaining_time)
+            logger.debug(
+                "duration_suspend_screen_lock: remaining_time %d", remaining_time
+            )
             self.suspend_screen_lock()
             sleep_interval = 0
             while sleep_interval < _state.refresh_interval_sec:
@@ -96,7 +100,7 @@ class NumLock:
             time.sleep(1)
             self.send_key(self.VK_NUMLOCK)
 
-            sleep_interval = settings.DEFAULT_REFRESH_INTERVAL_SEC
+            sleep_interval = settings.DEFAULT_REFRESH_INTERVAL_SECONDS
             while sleep_interval > 0:
                 time.sleep(1)
                 sleep_interval -= 1
@@ -112,7 +116,7 @@ class NumLock:
     def duration_suspend_screen_lock(
         self,
         duration_min: int,
-        refresh_interval_sec: int = settings.DEFAULT_REFRESH_INTERVAL_SEC,
+        refresh_interval_sec: int = settings.DEFAULT_REFRESH_INTERVAL_SECONDS,
         **kwargs,
     ):
         _state.is_suspend_screen_lock_on = True
@@ -121,7 +125,9 @@ class NumLock:
         progress_callback = kwargs.pop("progress_callback")
         while time.time() < _state.end_time_sec:
             remaining_time = _state.end_time_sec - time.time()
-            logger.debug("duration_suspend_screen_lock: remaining_time %d", remaining_time)
+            logger.debug(
+                "duration_suspend_screen_lock: remaining_time %d", remaining_time
+            )
             self.send_key(self.VK_NUMLOCK)
             time.sleep(1)
             self.send_key(self.VK_NUMLOCK)
@@ -158,7 +164,7 @@ def release_screen_lock_suspend():
 
 def duration_suspend_screen_lock(
     duration_min: int,
-    refresh_interval_sec: int = settings.DEFAULT_REFRESH_INTERVAL_SEC,
+    refresh_interval_sec: int = settings.DEFAULT_REFRESH_INTERVAL_SECONDS,
     **kwargs,
 ):
     """Suspends screen lock for set duration of time.
@@ -168,12 +174,20 @@ def duration_suspend_screen_lock(
         refresh_interval_sec (int): Number of seconds after which
             screen lock prevention is repeated. Default is 30 sec.
     """
-    _state.impl.duration_suspend_screen_lock(duration_min, refresh_interval_sec, **kwargs)
+    _state.impl.duration_suspend_screen_lock(
+        duration_min, refresh_interval_sec, **kwargs
+    )
 
 
 def set_strategy(ndx: int):
     """Sets strategy for the Screen suspend."""
     _state.impl = strategies[ndx].impl
+    _state.strategy_ndx = ndx
+
+
+def get_strategy() -> int:
+    """Gets strategy index for the Screen suspend."""
+    return _state.strategy_ndx
 
 
 def get_suspended():
@@ -196,6 +210,7 @@ class _State:
     """Manages the screen lock state."""
 
     is_suspend_screen_lock_on = False
+    strategy_ndx = 0
     impl: ScreenLockProtocol = strategies[0].impl
     refresh_interval_sec = 0
     end_time_sec = 0

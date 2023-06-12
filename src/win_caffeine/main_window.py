@@ -13,9 +13,6 @@ from win_caffeine import qworker
 
 logger = logging.getLogger(__name__)
 
-STATUS_MESSAGE_DURATION_MSEC = 3000
-DEFAULT_STRATEGY_INDEX = 0
-
 
 class MainWindow(qt.QMainWindow):
     """Main window."""
@@ -28,29 +25,26 @@ class MainWindow(qt.QMainWindow):
         """Main window."""
         flags = flags or qt.Qt.WindowFlags()
         super().__init__(parent, flags)
-        screen_lock.set_suspended(False)
         self.suspend_action: Callable = self.release_suspend_lock
         self.thread_pool = qt.QThreadPool()
         self.duration_widget = widgets.DurationWidget()
         self.method_widget = widgets.RadioButtonGroup(
             options=[strategy.name for strategy in screen_lock.strategies],
             exclusive=True,
-            default_ndx=DEFAULT_STRATEGY_INDEX,
         )
-        screen_lock.set_strategy(DEFAULT_STRATEGY_INDEX)
         self.state_label = qt.QLabel()
         self.toggle_button = qt.QPushButton()
         self.settings_button = qt.QPushButton()
         self.exit_button = qt.QPushButton()
         self.central_widget = qt.QWidget()
+        self._settings = qt.QSettings(qt.QSettings.UserScope, "User", settings.APP_NAME)
         self.setup_ui()
+        self.setup_model()
         self.connect_signals()
+        self.update_toggle_state()
 
     def setup_ui(self):
         central_layout = qt.QVBoxLayout()
-        self.state_label.setText(self.get_state_message())
-        self.duration_widget.checkbox.setChecked(False)
-        self.duration_widget.on_enable_duration_changed(True)
         method_layout = qt.QVBoxLayout()
         method_layout.addWidget(qt.QLabel("Suspend method"))
         method_layout.addWidget(self.method_widget)
@@ -69,10 +63,14 @@ class MainWindow(qt.QMainWindow):
         self.settings_button.setVisible(False)
 
     def setup_window(self):
+        self._settings.beginGroup("WindowSettings")
+        window_pos = self._settings.value("window_pos", settings.WINDOW_POSITION)
+        self.move(qt.QPoint(*window_pos))
         self.setWindowTitle(settings.APP_NAME)
         self.setWindowIcon(qt.QIcon(theme.icon_path.coffee_on))
         self.setFixedWidth(settings.WINDOW_FIXED_WIDTH)
         self.setFixedHeight(settings.WINDOW_FIXED_HEIGHT)
+        self._settings.endGroup()
 
     def setup_buttons(self):
         self.toggle_button.setObjectName("toggle_button")
@@ -84,16 +82,65 @@ class MainWindow(qt.QMainWindow):
         self.exit_button.setIcon(qt.QIcon(theme.icon_path.exit))
         self.settings_button.setToolTip("Settings")
         self.exit_button.setToolTip("Exit")
-        self.method_widget.buttons_group.buttonClicked.connect(
-            self.on_method_button_clicked
-        )
         self.method_widget.setToolTip("Suspend method")
+
+    def setup_model(self):
+        self._settings.beginGroup("ModelSettings")
+        strategy_ndx = self._settings.value(
+            "strategy_index", settings.DEFAULT_STRATEGY_INDEX
+        )
+        duration_checked = self._settings.value(
+            "duration_checked", qt.Qt.CheckState.Unchecked
+        )
+        duration_minutes = self._settings.value(
+            "duration_minutes", settings.DEFAULT_DURATION_MINUTES, int
+        )
+        refresh_interval_seconds = self._settings.value(
+            "refresh_interval_seconds", settings.DEFAULT_REFRESH_INTERVAL_SECONDS, int
+        )
+
+        self.method_widget.setButtonChecked(strategy_ndx)
+        screen_lock.set_strategy(strategy_ndx)
+        screen_lock.set_suspended(False)
+
+        self.state_label.setText(self.get_state_message())
+        self.duration_widget.checkbox.setChecked(duration_checked)
+        self.duration_widget.on_enable_duration_changed(duration_checked)
+        self.duration_widget.duration.setValue(duration_minutes)
+        self.duration_widget.interval.setValue(refresh_interval_seconds)
+
+        self._settings.endGroup()
 
     def connect_signals(self):
         self.toggle_button.clicked.connect(self.on_toggle_button_clicked)
-        self.update_toggle_state()
         self.settings_button.clicked.connect(self.on_settings_button_clicked)
         self.exit_button.clicked.connect(self.on_window_exit_clicked)
+        self.method_widget.buttons_group.buttonClicked.connect(
+            self.on_method_button_clicked
+        )
+
+    def save_settings(self):
+        self.save_window_settings()
+        self.save_model_settings()
+
+    def save_window_settings(self):
+        self._settings.beginGroup("WindowSettings")
+        self._settings.setValue("window_pos", self.pos().toTuple())
+        self._settings.endGroup()
+
+    def save_model_settings(self):
+        self._settings.beginGroup("ModelSettings")
+        self._settings.setValue("strategy_index", screen_lock.get_strategy())
+        self._settings.setValue(
+            "duration_checked", self.duration_widget.checkbox.checkState()
+        )
+        self._settings.setValue(
+            "duration_minutes", self.duration_widget.duration.value()
+        )
+        self._settings.setValue(
+            "refresh_interval_seconds", self.duration_widget.interval.value()
+        )
+        self._settings.endGroup()
 
     def close(self) -> bool:
         return self.hide()
@@ -130,10 +177,8 @@ class MainWindow(qt.QMainWindow):
             self.suspend_action()
         except Exception:
             self.statusBar().showMessage(
-                "Suspend action failed!", STATUS_MESSAGE_DURATION_MSEC
+                "Suspend action failed!", settings.STATUS_MESSAGE_DURATION_MSECONDS
             )
-        # finally:
-        #     self.update_toggle_state()
 
     def on_settings_button_clicked(self):
         logger.debug("Show settings dialog")
@@ -145,6 +190,7 @@ class MainWindow(qt.QMainWindow):
     def on_window_exit_clicked(self):
         if screen_lock.get_suspended():
             self.release_suspend_lock()
+        self.save_settings()
         qt.QApplication.instance().quit()
 
     def release_suspend_lock(self):
@@ -153,7 +199,8 @@ class MainWindow(qt.QMainWindow):
     def run_suspend_lock(self):
         if screen_lock.get_suspended():
             self.statusBar().showMessage(
-                "Duration lock suspend is running!", STATUS_MESSAGE_DURATION_MSEC
+                "Duration lock suspend is running!",
+                settings.STATUS_MESSAGE_DURATION_MSECONDS,
             )
             return
 

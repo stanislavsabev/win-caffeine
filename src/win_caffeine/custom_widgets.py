@@ -18,16 +18,26 @@ class LabeledSpinbox(qt.QWidget):
             layout = qt.QHBoxLayout()
         else:
             layout = qt.QVBoxLayout()
-        label = qt.QLabel(label_text)
-        spin_box = qt.QSpinBox()
-        spin_box.setMaximum(max_value)
-        spin_box.setMinimum(min_value)
-        spin_box.setValue(value)
-        layout.addWidget(label)
-        layout.addWidget(spin_box)
+        self.label = qt.QLabel(label_text)
+        self.spin_box = qt.QSpinBox()
+        self.spin_box.setMaximum(max_value)
+        self.spin_box.setMinimum(min_value)
+        layout.addWidget(self.label)
+        layout.addWidget(self.spin_box)
         self.setLayout(layout)
-        self.label = label
-        self.spin_box = spin_box
+        self.setValue(value)
+
+    def setValue(self, value: int):
+        self.spin_box.setValue(value)
+
+    def value(self) -> int:
+        return self.spin_box.value()
+
+    def setText(self, text: str):
+        self.label.setText(text)
+
+    def text(self) -> int:
+        return self.label.text()
 
 
 class DurationWidget(qt.QWidget):
@@ -36,10 +46,10 @@ class DurationWidget(qt.QWidget):
         self.checkbox = qt.QCheckBox("Set Duration")
         self.checkbox.stateChanged.connect(self.on_enable_duration_changed)
         self.duration = LabeledSpinbox(
-            "Duration (min)", 2 * settings.HOUR, orientation=qt.Qt.Horizontal
+            "Duration (min)", value=0, orientation=qt.Qt.Horizontal
         )
         self.interval = LabeledSpinbox(
-            "Refresh interval (sec)", 2 * settings.MINUTE, orientation=qt.Qt.Horizontal
+            "Refresh interval (sec)", value=0, orientation=qt.Qt.Horizontal
         )
         layout = qt.QVBoxLayout()
         layout.addWidget(self.checkbox)
@@ -47,7 +57,12 @@ class DurationWidget(qt.QWidget):
         layout.addWidget(self.interval)
         self.setLayout(layout)
 
-    def on_enable_duration_changed(self, state):
+    def setEnabled(self, enabled: bool):
+        self.setEnabled(enabled)
+        self.duration.setEnabled(enabled)
+        self.interval.setEnabled(enabled)
+
+    def on_enable_duration_changed(self, state: qt.Qt.CheckState):
         enabled = state == qt.Qt.CheckState.Checked
         self.duration.setEnabled(enabled)
         self.interval.setEnabled(enabled)
@@ -76,3 +91,6 @@ class RadioButtonGroup(qt.QWidget):
             layout.addWidget(btn)
         self.setLayout(layout)
         self.buttons_group = buttons_group
+
+    def setButtonChecked(self, ndx):
+        self.buttons_group.button(ndx).setChecked(True)
