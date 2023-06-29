@@ -1,45 +1,37 @@
 # TODO
 
-## Implement CLI args:
+## Implement subcommands `gui`, `cmd` and `stop`
 
-    subcommand, required: gui / cmd 
+    Choose CLI or GUI mode and handle passing args
 
-Args:
+    [x] subcommands `gui`, `cmd` and `stop`
+    [x] call `cli` with args:
 
-    --duration=0, in minutes
-    --refresh_interval=60, Default = 60 sec
-    --method="NumLock" / "ThreadExecState (TES ?)"
-    --suspend-on-start=True
-
-
-## Implement cmd subcommand
-    Choose CLI or GUI mode by passing args
+        --duration=0, in minutes
+        --refresh_interval=60, Default = 60 sec
+        --method="NumLock" / "ThreadExecState"
 
 
 ## Settings panel
 
-
     [ ] change theme
-
     [x] start with windows - implemented .bat and .vbs files
-
     [-] save settings to user profile - 
-    
         [x] window position + last used method, 
         [ ] use system or custom theme etc. 
-        [ ] minimize to system tray (Don't ask again)
+        [ ] when, minimizing to system tray, show "Don't ask again" dialog
 
 ## Tests and CI/CD
 
-    - unit test
-    - flake8, mypy, tox
-    - git hooks
-    - github actions
+    [ ] unit test
+    [ ] flake8, mypy, tox
+    [ ] git hooks
+    [ ] github actions
 
 
 ## Update README
 
-     - Usage / how-to install section
+     [ ] Usage / how-to install section
 
 ## Create v1.0.0
     [ ]
@@ -47,4 +39,4 @@ Args:
 
 ## Bugs
 
-    - [x] prevent multiple app instances
+    [x] prevent multiple app instances

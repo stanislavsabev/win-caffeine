@@ -33,7 +33,7 @@ class MainWindow(qt.QMainWindow):
         self.thread_pool = qt.QThreadPool()
         self.duration_widget = widgets.DurationWidget(self.model)
         self.method_widget = widgets.RadioButtonGroup(
-            options=[strategy.name for strategy in self.model.strategies],
+            options=screen_lock.strategy_names,
             exclusive=True,
         )
         self.state_label = qt.QLabel()
@@ -91,7 +91,7 @@ class MainWindow(qt.QMainWindow):
         self.model.load_settings(self.usr_settings)
         self.model.set_suspended(False)
 
-        self.method_widget.setButtonChecked(self.model.strategy_ndx)
+        self.method_widget.setButtonChecked(self.model.strategy.ndx)
         self.state_label.setText(self.get_state_message())
         checked_state = (
             qt.Qt.Checked if self.model.is_duration_checked else qt.Qt.Unchecked
@@ -99,7 +99,7 @@ class MainWindow(qt.QMainWindow):
         self.duration_widget.checkbox.setChecked(checked_state)
         self.duration_widget.on_enable_duration_changed(checked_state)
         self.duration_widget.duration.setValue(self.model.duration_minutes)
-        self.duration_widget.interval.setValue(self.model.refresh_interval_seconds)
+        self.duration_widget.interval.setValue(self.model.interval_seconds)
 
     def connect_signals(self):
         self.toggle_button.clicked.connect(self.on_toggle_button_clicked)
@@ -119,24 +119,26 @@ class MainWindow(qt.QMainWindow):
         self.usr_settings.endGroup()
 
     def close(self) -> bool:
-        return self.hide()
+        self.hide()
+        return True
 
     def update_toggle_state(self):
         logger.debug("update_toggle_state")
         mode = "off"
         next_mode = "on"
-        icon: qt.QIcon = None
+        icon_path = ""
         if self.model.is_suspend_screen_lock_on:
             mode, next_mode = next_mode, mode
-            icon = qt.QIcon(theme.icon_path.coffee_on)
+            icon_path = theme.icon_path.coffee_on
             self.suspend_action = self.release_suspend_lock
             self.method_widget.setEnabled(False)
             action_name = "release_suspend_lock"
         else:
             self.suspend_action = self.run_suspend_lock
             self.method_widget.setEnabled(True)
-            icon = qt.QIcon(theme.icon_path.coffee_off)
+            icon_path = theme.icon_path.coffee_off
             action_name = "run_suspend_lock"
+        icon = qt.QIcon(icon_path)
 
         logger.debug("Next suspend_action = {}".format(action_name))
         self.toggle_button.setIcon(icon)

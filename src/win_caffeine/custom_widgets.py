@@ -37,13 +37,13 @@ class LabeledSpinbox(qt.QWidget):
     def setText(self, text: str):
         self.label.setText(text)
 
-    def text(self) -> int:
+    def text(self) -> str:
         return self.label.text()
 
 
 class DurationModel(typing.Protocol):
     duration_minutes: int
-    refresh_interval_sec: int
+    interval_seconds: int
 
 
 class DurationWidget(qt.QWidget):
@@ -80,7 +80,7 @@ class DurationWidget(qt.QWidget):
         self._model.duration_minutes = value
 
     def on_interval_changed(self, value):
-        self._model.refresh_interval_sec = value
+        self._model.interval_seconds = value
 
 
 class RadioButtonGroup(qt.QWidget):
@@ -88,7 +88,7 @@ class RadioButtonGroup(qt.QWidget):
         self,
         options: List[str],
         default_ndx: int = 0,
-        exclusive: bool = None,
+        exclusive: bool | None = None,
         parent: qt.QWidget | None = None,
     ) -> None:
         super().__init__(parent)

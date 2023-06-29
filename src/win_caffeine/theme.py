@@ -1,5 +1,5 @@
 """App theme."""
-import qdarktheme
+import qdarktheme  # type: ignore
 
 from win_caffeine import qt
 from win_caffeine import settings

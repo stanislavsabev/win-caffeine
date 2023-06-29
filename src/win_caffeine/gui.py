@@ -1,5 +1,5 @@
 """GUI app implementation."""
-import qdarktheme
+import qdarktheme  # type: ignore
 
 from win_caffeine import qt
 from win_caffeine import settings
@@ -7,8 +7,10 @@ from win_caffeine import theme
 from win_caffeine import main_window
 
 
-def run(*args, **kwargs):
+def run(args) -> int:
     """Run GUI app."""
+
+    del args  # unused
     # Enable HiDPI.
     qdarktheme.enable_hi_dpi()
 

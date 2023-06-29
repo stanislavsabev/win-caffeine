@@ -10,7 +10,7 @@ from win_caffeine import settings
 
 logger = logging.getLogger(__name__)
 
-Strategy = collections.namedtuple("Strategy", ["name", "impl"])
+Strategy = collections.namedtuple("Strategy", ["ndx", "name", "impl"])
 
 
 class StrategyProtocol(typing.Protocol):
@@ -26,9 +26,7 @@ class StrategyProtocol(typing.Protocol):
         """Suspends screen lock for set duration of time.
 
         Args:
-            duration_min (int): Number of minutes, screen lock prevention to last.
-            refresh_interval_sec (int): Number of seconds after which
-                screen lock prevention is repeated. Default is 30 sec.
+            progress_callback: Callable or None.
         """
         ...
 
@@ -39,6 +37,7 @@ class ThreadExecState:
     ES_SYSTEM_REQUIRED = 0x00000001
 
     def suspend_screen_lock(self, **kwargs):
+        """Suspends screen lock."""
         del kwargs  # unused
         model.is_suspend_screen_lock_on = True
         ctypes.windll.kernel32.SetThreadExecutionState(
@@ -52,6 +51,7 @@ class ThreadExecState:
             time.sleep(1)
 
     def release_screen_lock_suspend(self):
+        """Release screen lock prevention."""
         ctypes.windll.kernel32.SetThreadExecutionState(ThreadExecState.ES_CONTINUOUS)
         model.is_suspend_screen_lock_on = False
         logger.debug(
@@ -59,9 +59,14 @@ class ThreadExecState:
         )
 
     def duration_suspend_screen_lock(self, **kwargs):
+        """Suspends screen lock for set duration of time.
+
+        Args:
+            progress_callback: Callable or None.
+        """
         model.is_suspend_screen_lock_on = True
         end_time_sec = time.time() + (model.duration_minutes * settings.MINUTE)
-        progress_callback = kwargs.pop("progress_callback")
+        progress_callback = kwargs.get("progress_callback")
         remaining_time = end_time_sec - time.time()
 
         while time.time() < end_time_sec:
@@ -70,11 +75,12 @@ class ThreadExecState:
             )
             self.suspend_screen_lock()
             sleep_interval = 0
-            while sleep_interval < model.refresh_interval_seconds:
+            while sleep_interval < model.interval_seconds:
                 time.sleep(1)
                 sleep_interval += 1
                 remaining_time -= 1
-                progress_callback(str(int(remaining_time)))
+                if progress_callback:
+                    progress_callback(str(int(remaining_time)))
                 if not model.is_suspend_screen_lock_on:
                     return
         self.release_screen_lock_suspend()
@@ -84,6 +90,7 @@ class NumLock:
     VK_NUMLOCK = 0x90
 
     def suspend_screen_lock(self, **kwargs):
+        """Suspends screen lock."""
         del kwargs  # unused
         model.is_suspend_screen_lock_on = True
 
@@ -102,13 +109,19 @@ class NumLock:
             logger.debug("suspend_screen_lock return is on")
 
     def release_screen_lock_suspend(self):
+        """Release screen lock prevention."""
         model.is_suspend_screen_lock_on = False
         logger.debug("Release NumLock")
 
     def duration_suspend_screen_lock(self, **kwargs):
+        """Suspends screen lock for set duration of time.
+
+        Args:
+            progress_callback: Callable or None.
+        """
         model.is_suspend_screen_lock_on = True
         end_time_sec = time.time() + (model.duration_minutes * settings.MINUTE)
-        progress_callback = kwargs.pop("progress_callback")
+        progress_callback = kwargs.get("progress_callback")
         remaining_time = end_time_sec - time.time()
 
         while time.time() < end_time_sec:
@@ -119,17 +132,19 @@ class NumLock:
             time.sleep(1)
             self.send_key(self.VK_NUMLOCK)
 
-            sleep_interval = model.refresh_interval_seconds
+            sleep_interval = model.interval_seconds
             while sleep_interval > 0:
                 time.sleep(1)
                 sleep_interval -= 1
                 remaining_time -= 1
-                progress_callback(str(int(remaining_time)))
+                if progress_callback:
+                    progress_callback(str(int(remaining_time)))
                 if not model.is_suspend_screen_lock_on:
                     return
         self.release_screen_lock_suspend()
 
     def send_key(self, key, up_down_delay=0.1):
+        """Sends key via ctypes windll"""
         # key down
         ctypes.windll.user32.keybd_event(key, 0, 0, 0)
         time.sleep(up_down_delay)
@@ -138,20 +153,22 @@ class NumLock:
         logger.debug("Send key 0x%x", key)
 
 
+strategies = [
+    Strategy(0, "NumLock", NumLock()),
+    Strategy(1, "ThreadExecState", ThreadExecState()),
+]
+
+strategy_names = [strategy.name for strategy in strategies]
+
+
 class Model:
     """Manages the screen lock state."""
 
-    strategies = [
-        Strategy("NumLock", NumLock()),
-        Strategy("Thread Exec State", ThreadExecState()),
-    ]
-
     is_suspend_screen_lock_on = False
     is_duration_checked = False
-    strategy_ndx = settings.DEFAULT_STRATEGY_INDEX
     duration_minutes = settings.DEFAULT_DURATION_MINUTES
-    refresh_interval_seconds = settings.DEFAULT_REFRESH_INTERVAL_SECONDS
-    impl: StrategyProtocol = strategies[settings.DEFAULT_STRATEGY_INDEX].impl
+    interval_seconds = settings.DEFAULT_REFRESH_INTERVAL_SECONDS
+    strategy: Strategy = strategies[settings.DEFAULT_STRATEGY_INDEX]
 
     def set_suspended(self, val: bool):
         """Sets suspend state."""
@@ -159,41 +176,61 @@ class Model:
 
     def set_strategy(self, ndx: int):
         """Sets strategy for the Screen suspend."""
-        self.impl = self.strategies[ndx].impl
-        self.strategy_ndx = ndx
+        self.strategy = strategies[ndx]
 
     def save_settings(self, usr_settings: qt.QSettings):
+        """Saves model settings."""
         usr_settings.beginGroup("ModelSettings")
-        usr_settings.setValue("strategy_index", self.strategy_ndx)
+        usr_settings.setValue("strategy_index", self.strategy.ndx)
         usr_settings.setValue("duration_checked", self.is_duration_checked)
         usr_settings.setValue("duration_minutes", self.duration_minutes)
-        usr_settings.setValue("refresh_interval_seconds", self.refresh_interval_seconds)
+        usr_settings.setValue("refresh_interval_seconds", self.interval_seconds)
         usr_settings.endGroup()
 
     def load_settings(self, usr_settings: qt.QSettings):
+        """Loads model settings."""
         usr_settings.beginGroup("ModelSettings")
-        self.strategy_ndx = usr_settings.value(
-            "strategy_index", settings.DEFAULT_STRATEGY_INDEX
+        strategy_ndx = typing.cast(
+            int, usr_settings.value("strategy_index", settings.DEFAULT_STRATEGY_INDEX)
         )
-        self.is_duration_checked = usr_settings.value("duration_checked", False)
-        self.duration_minutes = usr_settings.value(
-            "duration_minutes", settings.DEFAULT_DURATION_MINUTES, int
+        self.set_strategy(strategy_ndx)
+
+        self.is_duration_checked = typing.cast(
+            bool, usr_settings.value("duration_checked", False)
         )
-        self.refresh_interval_seconds = usr_settings.value(
-            "refresh_interval_seconds", settings.DEFAULT_REFRESH_INTERVAL_SECONDS, int
+        self.duration_minutes = typing.cast(
+            int,
+            usr_settings.value("duration_minutes", settings.DEFAULT_DURATION_MINUTES),
+        )
+        self.interval_seconds = typing.cast(
+            int,
+            usr_settings.value(
+                "refresh_interval_seconds", settings.DEFAULT_REFRESH_INTERVAL_SECONDS
+            ),
         )
         usr_settings.endGroup()
 
     def suspend_screen_lock(self, **kwargs):
         """Suspends screen lock."""
+        logger.info("--- Suspend screen lock ---\n%s", str(self))
         if self.is_duration_checked:
-            self.impl.duration_suspend_screen_lock(**kwargs)
+            self.strategy.impl.duration_suspend_screen_lock(**kwargs)
         else:
-            self.impl.suspend_screen_lock(**kwargs)
+            self.strategy.impl.suspend_screen_lock(**kwargs)
 
     def release_screen_lock_suspend(self):
         """Release screen lock prevention."""
-        self.impl.release_screen_lock_suspend()
+        self.strategy.impl.release_screen_lock_suspend()
+
+    def __str__(self) -> str:
+        return ">>> " + "\n>>> ".join(
+            [
+                f"Duration: {str(self.duration_minutes)} min",
+                f"Interval: {str(self.interval_seconds)} sec",
+                f"Using duration: {str(self.is_duration_checked)}",
+                f"Strategy: {self.strategy.name}",
+            ]
+        )
 
 
 model = Model()
