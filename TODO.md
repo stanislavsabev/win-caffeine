@@ -47,4 +47,4 @@ Args:
 
 ## Bugs
 
-    - [ ] prevent multiple app instances
+    - [x] prevent multiple app instances

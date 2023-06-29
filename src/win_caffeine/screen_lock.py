@@ -10,10 +10,10 @@ from win_caffeine import settings
 
 logger = logging.getLogger(__name__)
 
-ScreenLock = collections.namedtuple("ScreenLock", ["name", "impl"])
+Strategy = collections.namedtuple("Strategy", ["name", "impl"])
 
 
-class ScreenLockProtocol(typing.Protocol):
+class StrategyProtocol(typing.Protocol):
     def suspend_screen_lock(self, **kwargs):
         """Suspends screen lock."""
         ...
@@ -142,8 +142,8 @@ class Model:
     """Manages the screen lock state."""
 
     strategies = [
-        ScreenLock("NumLock", NumLock()),
-        ScreenLock("Thread Exec State", ThreadExecState()),
+        Strategy("NumLock", NumLock()),
+        Strategy("Thread Exec State", ThreadExecState()),
     ]
 
     is_suspend_screen_lock_on = False
@@ -151,7 +151,7 @@ class Model:
     strategy_ndx = settings.DEFAULT_STRATEGY_INDEX
     duration_minutes = settings.DEFAULT_DURATION_MINUTES
     refresh_interval_seconds = settings.DEFAULT_REFRESH_INTERVAL_SECONDS
-    impl: ScreenLockProtocol = strategies[settings.DEFAULT_STRATEGY_INDEX].impl
+    impl: StrategyProtocol = strategies[settings.DEFAULT_STRATEGY_INDEX].impl
 
     def set_suspended(self, val: bool):
         """Sets suspend state."""

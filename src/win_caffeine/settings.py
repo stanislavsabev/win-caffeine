@@ -25,6 +25,3 @@ DEFAULT_REFRESH_INTERVAL_SECONDS = 2 * MINUTE
 MAX_INT = 2_147_483_647
 MIN_INT = -MAX_INT - 1
 
-
-def init(*args, **kwargs):
-    """Init settings."""
